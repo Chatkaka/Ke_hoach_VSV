@@ -1,7 +1,10 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import streamlit as st
 import pandas as pd
 import datetime
-import os
 import json
 import io
 
@@ -25,46 +28,97 @@ st.set_page_config(
 # --- Custom Styling ---
 st.markdown("""
 <style>
-    /* CSS for premium look */
+    /* Premium style system */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    
     .stApp {
-        background-color: #f7f9fc;
+        background-color: #f8fafc;
         color: #1e293b;
     }
-    h1, h2, h3 {
-        font-family: 'Outfit', 'Inter', sans-serif;
-        color: #0f172a;
+    
+    /* Top Banner Gradient */
+    .top-banner {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+        padding: 2.5rem;
+        border-radius: 16px;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.2);
     }
+    
+    .top-banner h1 {
+        color: white !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 800 !important;
+        font-size: 2.3rem !important;
+        margin: 0 !important;
+        letter-spacing: -0.03em;
+    }
+    
+    .top-banner p {
+        color: #dbeafe !important;
+        margin: 8px 0 0 0 !important;
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+    
+    /* Premium Metric Card */
     .metric-card {
-        padding: 20px;
+        padding: 1.25rem;
         border-radius: 12px;
         background: white;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #f1f5f9;
         border-left: 5px solid #cbd5e1;
-        transition: transform 0.2s;
+        transition: all 0.25s ease-in-out;
     }
     .metric-card:hover {
         transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
     }
-    .metric-red { border-left-color: #ef4444; background-color: #fef2f2; }
-    .metric-orange { border-left-color: #f97316; background-color: #fff7ed; }
-    .metric-yellow { border-left-color: #eab308; background-color: #fefce8; }
-    .metric-green { border-left-color: #22c55e; background-color: #f0fdf4; }
+    .metric-red { border-left-color: #ef4444; background: linear-gradient(180deg, #ffffff 0%, #fef2f2 100%); }
+    .metric-orange { border-left-color: #f97316; background: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%); }
+    .metric-yellow { border-left-color: #eab308; background: linear-gradient(180deg, #ffffff 0%, #fefce8 100%); }
+    .metric-green { border-left-color: #22c55e; background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%); }
+    
+    /* Warnings Card Layout */
+    .warning-item {
+        background: white; 
+        padding: 1.25rem; 
+        border-radius: 10px; 
+        margin-bottom: 1rem; 
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
+    }
+    .warning-item:hover {
+        border-color: #cbd5e1;
+    }
     
     .badge {
-        padding: 4px 10px;
+        padding: 5px 12px;
         border-radius: 9999px;
-        font-size: 0.8rem;
-        font-weight: 600;
+        font-size: 0.75rem;
+        font-weight: 700;
         display: inline-block;
+        letter-spacing: 0.05em;
     }
-    .badge-red { background-color: #fee2e2; color: #991b1b; }
-    .badge-orange { background-color: #ffedd5; color: #9a3412; }
-    .badge-yellow { background-color: #fef9c3; color: #854d0e; }
-    .badge-green { background-color: #dcfce7; color: #166534; }
+    .badge-red { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .badge-orange { background-color: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+    .badge-yellow { background-color: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+    .badge-green { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
     
-    .wbs-row {
-        background-color: #f8fafc;
-        font-style: italic;
+    /* Styled Forms */
+    .stForm {
+        background-color: white !important;
+        border-radius: 12px !important;
+        padding: 1.5rem !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -115,14 +169,19 @@ def load_ma_bsc_options():
     conn.close()
     return [{"id": r[0], "Ma_BSC": r[1], "Hang_muc": r[2]} for r in rows]
 
+# --- TOP BANNER (RENDER ON EVERY PAGE) ---
+st.markdown("""
+<div class="top-banner">
+    <h1>HỆ THỐNG KIỂM SOÁT KHÉP KÍN VÒNG ĐỜI GÓI THẦU (v1)</h1>
+    <p>Dự án KĐT Ven sông Vinh | Tự động hóa tính toán & Tư vấn giải pháp AI</p>
+</div>
+""", unsafe_allow_html=True)
+
 # --- 1. DASHBOARD VIEW ---
 if choice == "📊 Dashboard Điều hành":
-    st.title("📊 Dashboard Điều hành Hệ thống")
-    st.subheader("Dự án KĐT Ven sông Vinh | Trực quan hóa Rủi ro & Tiến độ")
+    st.write("## 📊 Dashboard Tổng quan Hệ thống")
     
     projects = business_logic.get_all_projects_calculated()
-    
-    # Calculate summary KPIs (Only count projects that have Ma_BSC)
     active_projects = [p for p in projects if p['Ma_BSC']]
     
     count_red = sum(1 for p in active_projects if p['Co_Canh_bao'] == 'RED')
@@ -136,49 +195,65 @@ if choice == "📊 Dashboard Điều hành":
     with col1:
         st.markdown(f"""
         <div class="metric-card">
-            <div style="font-size: 0.9rem; color: #64748b; font-weight: 600;">TỔNG HẠNG MỤC</div>
-            <div style="font-size: 2.2rem; font-weight: 700; color: #0f172a; margin-top: 5px;">{len(active_projects)}</div>
+            <div style="font-size: 0.8rem; color: #64748b; font-weight: 700; letter-spacing: 0.05em;">TỔNG HẠNG MỤC THEO DÕI</div>
+            <div style="font-size: 2.3rem; font-weight: 800; color: #0f172a; margin-top: 5px;">{len(active_projects)}</div>
         </div>
         """, unsafe_allow_html=True)
         
     with col2:
         st.markdown(f"""
         <div class="metric-card metric-red">
-            <div style="font-size: 0.9rem; color: #b91c1c; font-weight: 600;">🔴 CẢNH BÁO ĐỎ</div>
-            <div style="font-size: 2.2rem; font-weight: 700; color: #991b1b; margin-top: 5px;">{count_red}</div>
+            <div style="font-size: 0.8rem; color: #b91c1c; font-weight: 700; letter-spacing: 0.05em;">🔴 CẢNH BÁO ĐỎ</div>
+            <div style="font-size: 2.3rem; font-weight: 800; color: #991b1b; margin-top: 5px;">{count_red}</div>
         </div>
         """, unsafe_allow_html=True)
         
     with col3:
         st.markdown(f"""
         <div class="metric-card metric-orange">
-            <div style="font-size: 0.9rem; color: #c2410c; font-weight: 600;">🟠 CẢNH BÁO CAM</div>
-            <div style="font-size: 2.2rem; font-weight: 700; color: #9a3412; margin-top: 5px;">{count_orange}</div>
+            <div style="font-size: 0.8rem; color: #c2410c; font-weight: 700; letter-spacing: 0.05em;">🟠 CẢNH BÁO CAM</div>
+            <div style="font-size: 2.3rem; font-weight: 800; color: #9a3412; margin-top: 5px;">{count_orange}</div>
         </div>
         """, unsafe_allow_html=True)
         
     with col4:
         st.markdown(f"""
         <div class="metric-card metric-yellow">
-            <div style="font-size: 0.9rem; color: #a16207; font-weight: 600;">🟡 CẢNH BÁO VÀNG</div>
-            <div style="font-size: 2.2rem; font-weight: 700; color: #854d0e; margin-top: 5px;">{count_yellow}</div>
+            <div style="font-size: 0.8rem; color: #a16207; font-weight: 700; letter-spacing: 0.05em;">🟡 CẢNH BÁO VÀNG</div>
+            <div style="font-size: 2.3rem; font-weight: 800; color: #854d0e; margin-top: 5px;">{count_yellow}</div>
         </div>
         """, unsafe_allow_html=True)
         
     with col5:
         st.markdown(f"""
         <div class="metric-card metric-green">
-            <div style="font-size: 0.9rem; color: #15803d; font-weight: 600;">🟢 BÌNH THƯỜNG (XANH)</div>
-            <div style="font-size: 2.2rem; font-weight: 700; color: #166534; margin-top: 5px;">{count_green}</div>
+            <div style="font-size: 0.8rem; color: #15803d; font-weight: 700; letter-spacing: 0.05em;">🟢 BÌNH THƯỜNG</div>
+            <div style="font-size: 2.3rem; font-weight: 800; color: #166534; margin-top: 5px;">{count_green}</div>
         </div>
         """, unsafe_allow_html=True)
         
     st.divider()
     
-    # Export and Refresh Section
+    # Financial metrics totals
+    total_budget = sum(p['Ngan_sach'] for p in projects if p['Ngan_sach'])
+    total_contract = sum(p['Gia_tri_HDCU'] for p in projects if p['Gia_tri_HDCU'])
+    total_cost_calc = sum(p['Total_Cost'] for p in active_projects)
+    
+    st.write("### 💰 Phân tích Ngân sách & Chi phí Hệ thống")
+    fcol1, fcol2, fcol3 = st.columns(3)
+    with fcol1:
+        st.metric("Tổng Ngân sách Kế hoạch", f"{total_budget:,.2f} tỷ VNĐ")
+    with fcol2:
+        st.metric("Tổng Hợp đồng Cung ứng", f"{total_contract:,.2f} tỷ VNĐ")
+    with fcol3:
+        st.metric("Tổng Chi phí Thực tế Lũy kế", f"{total_cost_calc:,.2f} tỷ VNĐ", delta=f"{total_cost_calc - total_contract:,.2f} tỷ phát sinh")
+
+    st.divider()
+    
+    # Action Header
     ecol1, ecol2 = st.columns([8, 2])
     with ecol1:
-        st.write("### 📌 Danh sách Hạng mục cần Hành động (Đỏ & Cam)")
+        st.write("### 📌 Danh sách các hạng mục cảnh báo cần xử lý (RED/ORANGE)")
     with ecol2:
         # Excel Export Button
         try:
@@ -198,75 +273,74 @@ if choice == "📊 Dashboard Điều hành":
     critical_projects = [p for p in active_projects if p['Co_Canh_bao'] in ('RED', 'ORANGE')]
     
     if not critical_projects:
-        st.success("🎉 Tuyệt vời! Hiện tại không có hạng mục nào gặp rủi ro Đỏ hoặc Cam.")
+        st.success("🎉 Hệ thống hoạt động tốt! Không có rủi ro Đỏ hoặc Cam nào được phát hiện.")
     else:
         for p in critical_projects:
             color_badge = "badge-red" if p['Co_Canh_bao'] == 'RED' else "badge-orange"
             text_color = "🔴 ĐỎ" if p['Co_Canh_bao'] == 'RED' else "🟠 CAM"
             
-            with st.container():
-                st.markdown(f"""
-                <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h4 style="margin: 0; color: #0f172a;">{p['Hang_muc']} (Mã: {p['Ma_BSC']})</h4>
-                        <span class="badge {color_badge}">{text_color}</span>
-                    </div>
-                    <p style="margin: 10px 0 5px 0; font-size: 0.95rem;">
-                        <strong>Phụ trách:</strong> {p['Phu_trach']} | 
-                        <strong>Nhóm công trình:</strong> {p['Nhom_CT']} | 
-                        <strong>Khởi công:</strong> {p['Ngay_BD_Khoi_Cong'] or 'Chưa có'}
-                    </p>
-                    <p style="margin: 0 0 10px 0; color: #e11d48; font-weight: 600; font-size: 0.95rem;">
-                        ⚠️ Lý do cảnh báo: {p['Canh_bao_Text']}
-                    </p>
+            st.markdown(f"""
+            <div class="warning-item">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 1.1rem; font-weight: 700; color: #1e3a8a;">{p['Hang_muc']} (Mã BSC: {p['Ma_BSC']})</span>
+                    <span class="badge {color_badge}">{text_color}</span>
                 </div>
-                """, unsafe_allow_html=True)
-                
-                # Gemini AI Solutions
-                with st.expander(f"🤖 Xem giải pháp khắc phục từ Gemini AI cho {p['Ma_BSC']}"):
-                    if st.button("🚀 Tạo kế hoạch hành động khắc phục rủi ro", key=f"risk_btn_{p['id']}"):
-                        with st.spinner("Đang kết nối Gemini AI để phân tích và đề xuất giải pháp..."):
-                            try:
-                                solutions = ai_service.get_risk_advisor_solutions(p, st.session_state.get('gemini_api_key'))
-                                st.markdown(solutions)
-                            except Exception as ex:
-                                st.error(f"Lỗi: {ex}")
+                <div style="margin-top: 8px; font-size: 0.9rem; color: #475569;">
+                    <strong>Phụ trách:</strong> {p['Phu_trach']} | 
+                    <strong>Nhóm:</strong> {p['Nhom_CT']} | 
+                    <strong>Ngân sách:</strong> {p['Ngan_sach'] or 0.0:.2f} tỷ | 
+                    <strong>Tổng chi thực tế:</strong> {p['Total_Cost'] or 0.0:.2f} tỷ
+                </div>
+                <div style="margin-top: 8px; color: #dc2626; font-weight: 600; font-size: 0.9rem; background-color: #fff5f5; padding: 8px 12px; border-radius: 6px; border: 1px solid #fee2e2;">
+                    ⚠️ Chi tiết: {p['Canh_bao_Text']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Gemini AI Solutions
+            with st.expander(f"🤖 Đề xuất Phương án & Biện pháp Đẩy nhanh Tiến độ (Gemini AI) cho {p['Ma_BSC']}"):
+                if st.button("💡 Tạo giải pháp xử lý rủi ro xây dựng", key=f"risk_btn_{p['id']}"):
+                    with st.spinner("Gemini AI đang tổng hợp giải pháp kỹ thuật xây dựng nâng cao..."):
+                        try:
+                            solutions = ai_service.get_risk_advisor_solutions(p, st.session_state.get('gemini_api_key'))
+                            st.markdown(solutions)
+                        except Exception as ex:
+                            st.error(f"Lỗi: {ex}")
 
 # --- 2. MASTER TABLE VIEW ---
 elif choice == "📋 Bảng Tổng hợp (Master)":
-    st.title("📋 Bảng Tổng hợp Tiến độ - Kế hoạch - Cung ứng (Master)")
+    st.write("## 📋 Bảng Tổng hợp Master (BANG TONG HOP)")
     
     projects = business_logic.get_all_projects_calculated()
     
     # Filter/Group by Nhóm CT
     nhom_ct_list = sorted(list(set([p['Nhom_CT'] for p in projects if p['Nhom_CT']])))
     
-    # Add new item modal/button
-    with st.expander("➕ Thêm mới Hạng mục (WBS)"):
+    # Add new item
+    with st.expander("➕ Thêm mới Hạng mục công việc (WBS)"):
         with st.form("add_project_form"):
             c1, c2, c3 = st.columns(3)
             with c1:
-                new_tt = st.text_input("TT (Ví dụ: 3, 2.1, 2.2.1)")
-                new_ma_bsc = st.text_input("Mã BSC (Bỏ trống đối với WBS thành phần)")
+                new_tt = st.text_input("Mã TT (Ví dụ: 3, 2.1, 2.2.1)")
+                new_ma_bsc = st.text_input("Mã BSC (Nếu là hạng mục WBS cấp con, hãy để trống)")
                 new_goi_thau = st.text_input("Gói thầu (PL)")
             with c2:
                 new_nhom_ct = st.selectbox("Nhóm công trình", ["Hạ tầng kỹ thuật", "Xây dựng dân dụng", "Công trình phục vụ KD"])
-                new_hang_muc = st.text_input("Hạng mục / Công việc *")
-                new_phu_trach = st.text_input("Phụ trách")
+                new_hang_muc = st.text_input("Tên Hạng mục / Công việc *")
+                new_phu_trach = st.text_input("Kỹ sư Phụ trách")
             with c3:
-                new_ngan_sach = st.number_input("Ngân sách (tỷ đồng)", min_value=0.0, step=0.1)
+                new_ngan_sach = st.number_input("Ngân sách phê duyệt (tỷ)", min_value=0.0, step=0.1)
                 new_ngay_bd = st.date_input("Ngày bắt đầu (Yêu cầu CĐT)", value=None)
                 new_ngay_kt = st.date_input("Ngày kết thúc (Yêu cầu CĐT)", value=None)
                 
             submitted = st.form_submit_button("Lưu Hạng mục")
             if submitted:
                 if not new_hang_muc:
-                    st.error("Vui lòng điền tên Hạng mục / Công việc.")
+                    st.error("Vui lòng nhập Tên Hạng mục / Công việc.")
                 else:
                     conn = database.get_connection()
                     cursor = conn.cursor()
                     
-                    # Convert dates
                     bd_str = new_ngay_bd.strftime('%Y-%m-%d') if new_ngay_bd else None
                     kt_str = new_ngay_kt.strftime('%Y-%m-%d') if new_ngay_kt else None
                     
@@ -279,55 +353,146 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                     st.success("Đã thêm hạng mục mới thành công!")
                     st.rerun()
 
-    # Display grouped table
+    # Dynamic Tabs for grouped views - MATCHING THE RED HIGHLIGHT IN IMAGES AND UX SMOOTHNESS
+    st.write("### 📑 Bộ lọc các cột theo chức năng kiểm soát")
+    tab_labels = [
+        "🔴 A. Đầu vào CĐT (Phần khoanh đỏ)",
+        "🚚 B. Cung ứng & Hợp đồng",
+        "⚡ D. Chốt chặn Khởi công",
+        "💰 E. Ngân sách & Chi phí",
+        "📊 G. Quản lý Thi công",
+        "🏢 Tất cả dữ liệu"
+    ]
+    t1, t2, t3, t4, t5, t6 = st.tabs(tab_labels)
+    
+    def render_project_grid(proj_list, cols_to_show, key_suffix=""):
+        display_list = []
+        for p in proj_list:
+            is_wbs = not p['Ma_BSC']
+            row_dict = {}
+            for col_key, col_name in cols_to_show.items():
+                if col_key == "Ma_BSC" and not p['Ma_BSC']:
+                    row_dict[col_name] = "--- WBS ---"
+                elif col_key in ("DK1_HSKT", "DK2_HDCU", "DK3_KHTK"):
+                    row_dict[col_name] = "N/A" if is_wbs else ("✔" if p[col_key] else "✘")
+                elif col_key in ("Dieu_kien_du", "Co_Canh_bao"):
+                    row_dict[col_name] = "---" if is_wbs else p[col_key]
+                elif col_key in ("KH_Thang", "KQ_Thang") and p[col_key] is not None:
+                    row_dict[col_name] = f"{p[col_key] * 100:.1f}%"
+                else:
+                    row_dict[col_name] = p[col_key] if p[col_key] is not None else ""
+            display_list.append(row_dict)
+            
+        df = pd.DataFrame(display_list)
+        st.dataframe(df, hide_index=True, use_container_width=True, key=f"grid_{key_suffix}")
+
+    # Tabs rendering logic
     for g_name in nhom_ct_list:
-        st.write(f"## 🏢 Nhóm công trình: {g_name}")
+        st.write(f"---")
+        st.write(f"### 🏢 Nhóm công trình: **{g_name}**")
         group_projects = [p for p in projects if p['Nhom_CT'] == g_name]
         
-        # Prepare tabular dataframe to render
-        display_data = []
-        for p in group_projects:
-            is_wbs = not p['Ma_BSC'] # Sub-item WBS has blank Ma_BSC
-            
-            # Format row display dictionary
-            row_dict = {
-                "ID": p['id'],
-                "TT": p['TT'],
-                "Mã BSC": p['Ma_BSC'] or "--- WBS ---",
-                "Hạng mục": p['Hang_muc'],
-                "Ngân sách (tỷ)": p['Ngan_sach'] if p['Ngan_sach'] else "",
-                "Khởi công kế hoạch": p['Ngay_BD_Khoi_Cong'] or "",
-                "ĐK1 HSKT": "N/A" if is_wbs else ("✔" if p['DK1_HSKT'] else "✘"),
-                "ĐK2 HĐCU": "N/A" if is_wbs else ("✔" if p['DK2_HDCU'] else "✘"),
-                "ĐK3 KHTK": "N/A" if is_wbs else ("✔" if p['DK3_KHTK'] else "✘"),
-                "Điều kiện Khởi công": "---" if is_wbs else p['Dieu_kien_du'],
-                "Cảnh báo": "---" if is_wbs else p['Co_Canh_bao']
+        # 1. TAB A: ĐẦU VÀO CĐT (Missing columns from image red box)
+        with t1:
+            cols_a = {
+                "TT": "TT",
+                "Ma_BSC": "Mã BSC",
+                "Hang_muc": "Hạng mục / Công việc",
+                "Phu_trach": "Phụ trách",
+                "Ngay_BD_YC": "Ngày BD (YC CĐT)",
+                "Ngay_KT_YC": "Ngày KT (YC CĐT)",
+                "Ngan_sach": "Ngân sách (tỷ)",
+                "KH_phat_hanh_HSTKTC": "KH phát hành HSTKTC",
+                "TT_HSTKTC": "TT HSTKTC",
+                "TT_SPECS": "TT SPECS",
+                "TT_BOQ": "TT BOQ/KL"
             }
-            display_data.append(row_dict)
+            render_project_grid(group_projects, cols_a, f"a_{g_name}")
             
-        df_group = pd.DataFrame(display_data)
-        
-        # Render table with styled colors
-        st.dataframe(
-            df_group,
-            column_config={
-                "Cảnh báo": st.column_config.TextColumn(
-                    "Cảnh báo",
-                    help="Trạng thái cảnh báo hệ thống"
-                ),
-            },
-            hide_index=True,
-            use_container_width=True
-        )
-        
-        # Actions for rows (Edit/Delete)
-        st.write("🔧 *Hành động nhanh cho Nhóm công trình:*")
+        # 2. TAB B: CUNG ỨNG
+        with t2:
+            cols_b = {
+                "TT": "TT",
+                "Ma_BSC": "Mã BSC",
+                "Hang_muc": "Hạng mục / Công việc",
+                "KH_LCNT": "KH LCNT",
+                "TT_LCNT": "TT LCNT",
+                "KH_Ky_HDCU": "KH Ký HĐCU",
+                "TT_Ky_HDCU": "TT Ký HĐCU",
+                "Gia_tri_HDCU": "Giá trị HĐCU (tỷ)",
+                "Percent_HDCU_NS": "% HĐ/NS (Tính)"
+            }
+            render_project_grid(group_projects, cols_b, f"b_{g_name}")
+
+        # 3. TAB D: CHỐT CHẶN KHỞI CÔNG
+        with t3:
+            cols_c = {
+                "TT": "TT",
+                "Ma_BSC": "Mã BSC",
+                "Hang_muc": "Hạng mục / Công việc",
+                "DK1_HSKT": "ĐK1 HSKT đủ",
+                "DK2_HDCU": "ĐK2 HĐCU ký",
+                "DK3_KHTK": "ĐK3 KHTK duyệt",
+                "Dieu_kien_du": "ĐIỀU KIỆN ĐỦ",
+                "Ngay_BD_Khoi_Cong": "NGÀY KHỞI CÔNG",
+                "Approved_HSo_Count": "HS tiền KC (duyệt)"
+            }
+            render_project_grid(group_projects, cols_c, f"c_{g_name}")
+
+        # 4. TAB E: NGÂN SÁCH
+        with t4:
+            cols_d = {
+                "TT": "TT",
+                "Ma_BSC": "Mã BSC",
+                "Hang_muc": "Hạng mục / Công việc",
+                "Ngan_sach": "Ngân sách (tỷ)",
+                "Luy_ke_HDCU": "Lũy kế HĐ A-B",
+                "Luy_ke_Phat_sinh": "Lũy kế Phát sinh B-B'",
+                "Total_Cost": "Tổng Chi phí Thực tế",
+                "Co_Canh_bao": "Trạng thái Cảnh báo"
+            }
+            render_project_grid(group_projects, cols_d, f"d_{g_name}")
+
+        # 5. TAB G: QUẢN LÝ THI CÔNG
+        with t5:
+            cols_g = {
+                "TT": "TT",
+                "Ma_BSC": "Mã BSC",
+                "Hang_muc": "Hạng mục / Công việc",
+                "KH_Thang": "KH KLCV Tháng",
+                "KQ_Thang": "KQ KLCV Thực tế",
+                "Danh_gia_Thang": "Đánh giá & Giải pháp Tháng",
+                "T1_KQ": "T1 KQ",
+                "T2_KQ": "T2 KQ",
+                "T3_KQ": "T3 KQ",
+                "T4_KQ": "T4 KQ"
+            }
+            render_project_grid(group_projects, cols_g, f"g_{g_name}")
+
+        # 6. TAB ALL
+        with t6:
+            cols_all = {
+                "TT": "TT",
+                "Ma_BSC": "Mã BSC",
+                "Goi_thau": "Gói thầu (PL)",
+                "Hang_muc": "Hạng mục / Công việc",
+                "Phu_trach": "Phụ trách",
+                "Ngay_BD_YC": "Ngày BD",
+                "Ngay_KT_YC": "Ngày KT",
+                "Ngan_sach": "Ngân sách",
+                "Dieu_kien_du": "Khởi công",
+                "Co_Canh_bao": "Cảnh báo"
+            }
+            render_project_grid(group_projects, cols_all, f"all_{g_name}")
+
+        # Action layout
+        st.write("⚙️ *Hành động nhanh cho Nhóm:*")
         cols = st.columns(4)
         with cols[0]:
-            p_to_edit = st.selectbox("Chọn hạng mục để sửa/cập nhật tiến trình", [f"{p['id']} - {p['Hang_muc']}" for p in group_projects], key=f"sel_edit_{g_name}")
+            p_to_edit = st.selectbox("Chọn hạng mục chỉnh sửa tiến trình", [f"{p['id']} - {p['Hang_muc']}" for p in group_projects], key=f"sel_edit_{g_name}")
         
         with cols[1]:
-            if st.button("✏️ Cập nhật thông tin chi tiết", key=f"btn_edit_{g_name}"):
+            if st.button("✏️ Cập nhật tiến trình", key=f"btn_edit_{g_name}"):
                 p_id = int(p_to_edit.split(" - ")[0])
                 st.session_state['edit_project_id'] = p_id
                 st.session_state['show_edit_form'] = True
@@ -343,84 +508,115 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 st.success("Đã xóa hạng mục thành công!")
                 st.rerun()
 
-    # Render Edit Form if active
+    # Form updating details (Redesigned to be tabs based and super smooth)
     if st.session_state.get('show_edit_form') and st.session_state.get('edit_project_id'):
         p_id = st.session_state['edit_project_id']
         proj = business_logic.get_project_by_id(p_id)
         
         st.divider()
-        st.markdown(f"### ✏️ Cập nhật Tiến trình Hạng mục: **{proj['Hang_muc']}**")
+        st.markdown(f"### ✏️ Biểu mẫu Cập nhật chi tiết: **{proj['Hang_muc']}**")
         
-        # Form to edit fields
         with st.form("edit_project_detail_form"):
-            c1, c2, c3 = st.columns(3)
+            # Sub-tabs inside the edit form for cleanliness
+            etab1, etab2, etab3 = st.tabs(["📋 Định danh & Đầu vào CĐT", "🚚 Cung ứng & Hợp đồng", "🚀 Tiến độ Thi công"])
             
-            with c1:
-                st.subheader("1. Hồ sơ Thiết kế & Khảo sát")
-                e_tt_hstk = st.selectbox("TT HSTKTC", ["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"], index=["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"].index(proj['TT_HSTKTC'] or "Chưa có TK"))
-                e_tt_specs = st.selectbox("TT SPECS", ["Chưa có", "Đang lập", "Đã cấp"], index=["Chưa có", "Đang lập", "Đã cấp"].index(proj['TT_SPECS'] or "Chưa có"))
-                e_tt_boq = st.selectbox("TT BOQ/KL", ["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"], index=["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"].index(proj['TT_BOQ'] or "Chưa bàn giao"))
-                e_ngay_kc = st.date_input("Ngày BĐ Khởi công", value=datetime.datetime.strptime(proj['Ngay_BD_Khoi_Cong'], '%Y-%m-%d').date() if proj['Ngay_BD_Khoi_Cong'] else None)
+            with etab1:
+                col_e1, col_e2 = st.columns(2)
+                with col_e1:
+                    e_tt = st.text_input("Mã TT", value=proj['TT'] or "")
+                    e_ma_bsc = st.text_input("Mã BSC", value=proj['Ma_BSC'] or "")
+                    e_goi_thau = st.text_input("Gói thầu", value=proj['Goi_thau'] or "")
+                    e_phu_trach = st.text_input("Người phụ trách", value=proj['Phu_trach'] or "")
+                with col_e2:
+                    e_ngay_bd = st.date_input("Ngày BĐ (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_BD_YC'], '%Y-%m-%d').date() if proj['Ngay_BD_YC'] else None)
+                    e_ngay_kt = st.date_input("Ngày KT (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_KT_YC'], '%Y-%m-%d').date() if proj['Ngay_KT_YC'] else None)
+                    e_ngan_sach = st.number_input("Ngân sách (tỷ)", min_value=0.0, value=proj['Ngan_sach'] or 0.0, step=0.1)
+                    
+            with etab2:
+                col_e3, col_e4 = st.columns(2)
+                with col_e3:
+                    st.write("**Hồ sơ Thiết kế & Khảo sát:**")
+                    e_kh_hstk = st.date_input("KH phát hành HSTKTC", value=datetime.datetime.strptime(proj['KH_phat_hanh_HSTKTC'], '%Y-%m-%d').date() if proj['KH_phat_hanh_HSTKTC'] else None)
+                    e_tt_hstk = st.selectbox("TT HSTKTC", ["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"], index=["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"].index(proj['TT_HSTKTC'] or "Chưa có TK"))
+                    e_tt_specs = st.selectbox("TT SPECS", ["Chưa có", "Đang lập", "Đã cấp"], index=["Chưa có", "Đang lập", "Đã cấp"].index(proj['TT_SPECS'] or "Chưa có"))
+                    e_tt_boq = st.selectbox("TT BOQ/KL", ["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"], index=["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"].index(proj['TT_BOQ'] or "Chưa bàn giao"))
+                with col_e4:
+                    st.write("**Hợp đồng Cung ứng:**")
+                    e_kh_lcnt = st.date_input("KH LCNT", value=datetime.datetime.strptime(proj['KH_LCNT'], '%Y-%m-%d').date() if proj['KH_LCNT'] else None)
+                    e_tt_lcnt = st.selectbox("TT LCNT", ["Chưa LCNT", "Đang mời thầu", "Đang đánh giá", "Đã có KQ", "Đã ký"], index=["Chưa LCNT", "Đang mời thầu", "Đang đánh giá", "Đã có KQ", "Đã ký"].index(proj['TT_LCNT'] or "Chưa LCNT"))
+                    e_kh_hdcu = st.date_input("KH Ký HĐCU", value=datetime.datetime.strptime(proj['KH_Ky_HDCU'], '%Y-%m-%d').date() if proj['KH_Ky_HDCU'] else None)
+                    e_tt_hdcu = st.selectbox("TT Ký HĐCU", ["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"], index=["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"].index(proj['TT_Ky_HDCU'] or "Chưa CU"))
+                    e_val_hdcu = st.number_input("Giá trị HĐ Cung ứng (tỷ)", min_value=0.0, value=proj['Gia_tri_HDCU'] or 0.0, step=0.1)
 
-            with c2:
-                st.subheader("2. Hợp đồng & Cung ứng")
-                e_tt_hdcu = st.selectbox("TT Ký HĐCU", ["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"], index=["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"].index(proj['TT_Ky_HDCU'] or "Chưa CU"))
-                e_val_hdcu = st.number_input("Giá trị HĐ Cung ứng (tỷ)", min_value=0.0, value=proj['Gia_tri_HDCU'] or 0.0, step=0.1)
-                e_tt_khtk = st.selectbox("TT KHTK", ["Chưa trình", "Đang duyệt", "Đã duyệt"], index=["Chưa trình", "Đang duyệt", "Đã duyệt"].index(proj['TT_KHTK'] or "Chưa trình"))
-                e_phu_trach = st.text_input("Người phụ trách", value=proj['Phu_trach'] or "")
+            with etab3:
+                col_e5, col_e6 = st.columns(2)
+                with col_e5:
+                    st.write("**Thời gian & Kế hoạch:**")
+                    e_ngay_kc = st.date_input("Ngày Khởi công", value=datetime.datetime.strptime(proj['Ngay_BD_Khoi_Cong'], '%Y-%m-%d').date() if proj['Ngay_BD_Khoi_Cong'] else None)
+                    e_tt_khtk = st.selectbox("TT KHTK", ["Chưa trình", "Đang duyệt", "Đã duyệt"], index=["Chưa trình", "Đang duyệt", "Đã duyệt"].index(proj['TT_KHTK'] or "Chưa trình"))
+                    e_kh_thang = st.number_input("Kế hoạch sản lượng tháng (%)", min_value=0.0, max_value=100.0, value=float((proj['KH_Thang'] or 0.0) * 100)) / 100.0
+                    e_kq_thang = st.number_input("Kết quả sản lượng thực tế (%)", min_value=0.0, max_value=100.0, value=float((proj['KQ_Thang'] or 0.0) * 100)) / 100.0
+                with col_e6:
+                    st.write("**Phân tích Tiến độ:**")
+                    e_danh_gia = st.text_area("Đánh giá tiến độ & giải pháp hành động", value=proj['Danh_gia_Thang'] or "")
 
-            with c3:
-                st.subheader("3. Kiểm soát Tiến độ Tháng")
-                e_kh_thang = st.number_input("Kế hoạch sản lượng tháng (%)", min_value=0.0, max_value=100.0, value=float((proj['KH_Thang'] or 0.0) * 100)) / 100.0
-                e_kq_thang = st.number_input("Kết quả sản lượng thực tế (%)", min_value=0.0, max_value=100.0, value=float((proj['KQ_Thang'] or 0.0) * 100)) / 100.0
-                e_danh_gia = st.text_area("Đánh giá sản lượng & Giải pháp", value=proj['Danh_gia_Thang'] or "")
-                
             submitted_edit = st.form_submit_button("Lưu thay đổi")
             if submitted_edit:
                 conn = database.get_connection()
                 cursor = conn.cursor()
                 
+                bd_str = e_ngay_bd.strftime('%Y-%m-%d') if e_ngay_bd else None
+                kt_str = e_ngay_kt.strftime('%Y-%m-%d') if e_ngay_kt else None
+                kh_hstk_str = e_kh_hstk.strftime('%Y-%m-%d') if e_kh_hstk else None
+                kh_lcnt_str = e_kh_lcnt.strftime('%Y-%m-%d') if e_kh_lcnt else None
+                kh_hdcu_str = e_kh_hdcu.strftime('%Y-%m-%d') if e_kh_hdcu else None
                 kc_str = e_ngay_kc.strftime('%Y-%m-%d') if e_ngay_kc else None
                 
                 cursor.execute("""
                     UPDATE master_bang_tonghop
-                    SET TT_HSTKTC = ?, TT_SPECS = ?, TT_BOQ = ?, TT_Ky_HDCU = ?, Gia_tri_HDCU = ?, 
-                        TT_KHTK = ?, Ngay_BD_Khoi_Cong = ?, KH_Thang = ?, KQ_Thang = ?, Danh_gia_Thang = ?, Phu_trach = ?
+                    SET TT = ?, Ma_BSC = ?, Goi_thau = ?, Phu_trach = ?, Ngay_BD_YC = ?, Ngay_KT_YC = ?, Ngan_sach = ?,
+                        KH_phat_hanh_HSTKTC = ?, TT_HSTKTC = ?, TT_SPECS = ?, TT_BOQ = ?,
+                        KH_LCNT = ?, TT_LCNT = ?, KH_Ky_HDCU = ?, TT_Ky_HDCU = ?, Gia_tri_HDCU = ?,
+                        Ngay_BD_Khoi_Cong = ?, TT_KHTK = ?, KH_Thang = ?, KQ_Thang = ?, Danh_gia_Thang = ?
                     WHERE id = ?
-                """, (e_tt_hstk, e_tt_specs, e_tt_boq, e_tt_hdcu, e_val_hdcu, e_tt_khtk, kc_str, e_kh_thang, e_kq_thang, e_danh_gia, e_phu_trach, p_id))
+                """, (
+                    e_tt, e_ma_bsc, e_goi_thau, e_phu_trach, bd_str, kt_str, e_ngan_sach,
+                    kh_hstk_str, e_tt_hstk, e_tt_specs, e_tt_boq,
+                    kh_lcnt_str, e_tt_lcnt, kh_hdcu_str, e_tt_hdcu, e_val_hdcu,
+                    kc_str, e_tt_khtk, e_kh_thang, e_kq_thang, e_danh_gia, p_id
+                ))
                 
                 conn.commit()
                 conn.close()
-                st.success("Đã cập nhật tiến trình thành công!")
+                st.success("Đã lưu các thay đổi cho hạng mục thành công!")
                 st.session_state['show_edit_form'] = False
                 st.rerun()
 
 # --- 3. SUB-TABLE 01: HỒ SƠ TIỀN KHỞI CÔNG ---
 elif choice == "📂 01. Hồ sơ Tiền khởi công":
-    st.title("📂 Sổ 01 - Hồ sơ Tiền khởi công")
-    st.write("Quản lý danh sách các sản phẩm/hồ sơ bắt buộc hoàn thành trước khi được phép phát lệnh Khởi công.")
+    st.write("## 📂 Sổ 01 - Hồ sơ Tiền khởi công")
+    st.write("Quản lý danh sách các hồ sơ đầu vào bắt buộc duyệt trước khi Khởi công.")
     
-    # Load options
     bsc_options = load_ma_bsc_options()
     
-    with st.expander("➕ Thêm mới Hồ sơ Tiền khởi công"):
+    with st.expander("➕ Thêm mới Hồ sơ"):
         with st.form("add_hso_form"):
             c1, c2 = st.columns(2)
             with c1:
-                sel_bsc = st.selectbox("Mã BSC dự án", [f"{opt['Ma_BSC']} - {opt['Hang_muc']}" for opt in bsc_options])
+                sel_bsc = st.selectbox("Dự án liên kết (Mã BSC)", [f"{opt['Ma_BSC']} - {opt['Hang_muc']}" for opt in bsc_options])
                 h_loai = st.selectbox("Loại hồ sơ", ['HSTKTC', 'SPECS', 'BOQ/KL', 'KQ LCNT', 'HĐCU', 'PD KHCU', 'Ký PLHĐ', 'PD KHTK'])
-                h_ten = st.text_input("Tên sản phẩm / Số hiệu *")
-                h_link = st.text_input("LINK lưu trữ hồ sơ")
+                h_ten = st.text_input("Tên tài liệu / Số hiệu văn bản *")
+                h_link = st.text_input("Đường dẫn lưu trữ (LINK)")
             with c2:
-                h_ngay = st.date_input("Ngày hoàn thành", value=datetime.date.today())
-                h_nguoi_lap = st.text_input("Người lập")
-                h_nguoi_duyet = st.text_input("Người duyệt")
-                h_tt = st.selectbox("Trạng thái duyệt", ['Chưa lập', 'Đang lập', 'Chờ duyệt', 'Đã duyệt', 'Từ chối'], index=3) # Default: Đã duyệt
+                h_ngay = st.date_input("Ngày ký / hoàn thành", value=datetime.date.today())
+                h_nguoi_lap = st.text_input("Kỹ sư lập")
+                h_nguoi_duyet = st.text_input("Kỹ sư duyệt")
+                h_tt = st.selectbox("Trạng thái duyệt", ['Chưa lập', 'Đang lập', 'Chờ duyệt', 'Đã duyệt', 'Từ chối'], index=3)
                 
             submitted_hso = st.form_submit_button("Lưu Hồ sơ")
             if submitted_hso:
                 if not h_ten:
-                    st.error("Vui lòng nhập Tên sản phẩm / Số hiệu.")
+                    st.error("Vui lòng nhập Tên hồ sơ.")
                 else:
                     ma_bsc_val = sel_bsc.split(" - ")[0]
                     hang_muc_val = sel_bsc.split(" - ")[1]
@@ -434,44 +630,42 @@ elif choice == "📂 01. Hồ sơ Tiền khởi công":
                     """, (ma_bsc_val, hang_muc_val, h_loai, h_ten, h_link, ngay_str, h_nguoi_lap, h_nguoi_duyet, h_tt))
                     conn.commit()
                     conn.close()
-                    st.success("Đã thêm mới hồ sơ tiền khởi công thành công!")
+                    st.success("Thêm mới hồ sơ thành công!")
                     st.rerun()
 
-    # Load and display
     conn = database.get_connection()
     df_hso = pd.read_sql_query("SELECT id, Ma_BSC, Hang_muc, Loai_ho_so, Ten_san_pham, Link_luu_tru, Ngay_HT, Nguoi_lap, Nguoi_duyet, TT_duyet FROM hso_tienkc", conn)
     conn.close()
-    
     st.dataframe(df_hso, hide_index=True, use_container_width=True)
 
 # --- 4. SUB-TABLE 02: KẾ HOẠCH THÁNG/TUẦN ---
 elif choice == "📅 02. Kế hoạch Tháng/Tuần":
-    st.title("📅 Sổ 02 - Kế hoạch Triển khai Tháng/Tuần")
-    st.write("Bắt buộc trình duyệt 5 tài liệu trước đầu tháng: Biện pháp thi công, Kế hoạch cung ứng, Biểu đồ nhân lực, Biểu đồ máy móc thiết bị, Biểu đồ cung ứng.")
+    st.write("## 📅 Sổ 02 - Kế hoạch Triển khai Tháng/Tuần")
+    st.write("Kiểm soát việc trình duyệt 5 tài liệu bắt buộc theo tuần/tháng.")
     
     bsc_options = load_ma_bsc_options()
     
-    with st.expander("➕ Trình duyệt Tài liệu Kế hoạch"):
+    with st.expander("➕ Trình duyệt Kế hoạch Mới"):
         with st.form("add_kh_form"):
             c1, c2 = st.columns(2)
             with c1:
-                sel_bsc = st.selectbox("Mã BSC dự án", [f"{opt['Ma_BSC']} - {opt['Hang_muc']}" for opt in bsc_options])
-                kh_thang = st.text_input("Tháng (Ví dụ: 06/2026)", value="06/2026")
-                kh_loai = st.selectbox("Loại tài liệu", ['Biện pháp thi công', 'Kế hoạch cung ứng', 'Biểu đồ nhân lực', 'Biểu đồ máy móc thiết bị', 'Biểu đồ cung ứng'])
-                kh_nd = st.text_input("Nội dung chính *")
+                sel_bsc = st.selectbox("Chọn dự án (Mã BSC)", [f"{opt['Ma_BSC']} - {opt['Hang_muc']}" for opt in bsc_options])
+                kh_thang = st.text_input("Tháng kiểm soát (Ví dụ: 06/2026)", value="06/2026")
+                kh_loai = st.selectbox("Loại tài liệu kế hoạch", ['Biện pháp thi công', 'Kế hoạch cung ứng', 'Biểu đồ nhân lực', 'Biểu đồ máy móc thiết bị', 'Biểu đồ cung ứng'])
+                kh_nd = st.text_input("Nội dung đệ trình chính *")
                 kh_yckt = st.selectbox("Đạt yêu cầu kỹ thuật CĐT?", ['Có', 'Chưa', 'Đang sửa đổi'], index=0)
             with c2:
-                kh_link = st.text_input("LINK tài liệu")
+                kh_link = st.text_input("LINK tài liệu đính kèm")
                 kh_tt_lap = st.selectbox("Trạng thái lập", ['Chưa lập', 'Đang lập', 'Đã lập'], index=2)
                 kh_tt_duyet = st.selectbox("Trạng thái duyệt", ['Chưa lập', 'Đang lập', 'Chờ duyệt', 'Đã duyệt', 'Từ chối'], index=3)
-                kh_nguoi_lap = st.text_input("Người lập")
-                kh_nguoi_duyet = st.text_input("Người duyệt")
-                kh_ngay_duyet = st.date_input("Ngày duyệt", value=datetime.date.today())
+                kh_nguoi_lap = st.text_input("Nhà thầu lập")
+                kh_nguoi_duyet = st.text_input("Cán bộ duyệt")
+                kh_ngay_duyet = st.date_input("Ngày phê duyệt", value=datetime.date.today())
                 
             submitted_kh = st.form_submit_button("Lưu Kế hoạch")
             if submitted_kh:
                 if not kh_nd:
-                    st.error("Vui lòng điền Nội dung chính.")
+                    st.error("Vui lòng điền Nội dung đệ trình chính.")
                 else:
                     ma_bsc_val = sel_bsc.split(" - ")[0]
                     hang_muc_val = sel_bsc.split(" - ")[1]
@@ -485,44 +679,42 @@ elif choice == "📅 02. Kế hoạch Tháng/Tuần":
                     """, (ma_bsc_val, hang_muc_val, kh_thang, kh_loai, kh_nd, kh_yckt, kh_link, kh_tt_lap, kh_tt_duyet, kh_nguoi_lap, kh_nguoi_duyet, ngay_duyet_str))
                     conn.commit()
                     conn.close()
-                    st.success("Đã trình kế hoạch mới thành công!")
+                    st.success("Trình kế hoạch thành công!")
                     st.rerun()
 
     conn = database.get_connection()
     df_kh = pd.read_sql_query("SELECT * FROM kh_thang_tuan", conn)
     conn.close()
-    
     st.dataframe(df_kh, hide_index=True, use_container_width=True)
 
 # --- 5. SUB-TABLE 03: QUẢN LÝ PHÁT SINH ---
 elif choice == "⚠️ 03. Quản lý Phát sinh":
     st.title("⚠️ Sổ 03 - Phát sinh & Sai khác")
-    st.write("Theo dõi, thẩm định và phê duyệt các phát sinh khối lượng hoặc sai khác thiết kế trong thi công.")
     
     bsc_options = load_ma_bsc_options()
     
-    with st.expander("➕ Đệ trình Phát sinh mới"):
+    with st.expander("➕ Báo cáo Phát sinh"):
         with st.form("add_ps_form"):
             c1, c2 = st.columns(2)
             with c1:
-                ps_ma = st.text_input("Mã phát sinh (Ví dụ: PS.CT01.03) *")
-                sel_bsc = st.selectbox("Mã BSC liên đới", [f"{opt['Ma_BSC']} - {opt['Hang_muc']}" for opt in bsc_options])
-                ps_ngay = st.date_input("Ngày phát sinh", value=datetime.date.today())
-                ps_loai = st.selectbox("Loại phát sinh", ['Phát sinh khối lượng', 'Sai khác thiết thiết kế', 'Biện pháp thi công phát sinh', 'Khác'])
-                ps_mota = st.text_area("Mô tả phát sinh")
-                ps_nguyennhan = st.text_area("Nguyên nhân")
+                ps_ma = st.text_input("Mã Phát sinh (Ví dụ: PS.CT01.03) *")
+                sel_bsc = st.selectbox("Mã BSC ảnh hưởng", [f"{opt['Ma_BSC']} - {opt['Hang_muc']}" for opt in bsc_options])
+                ps_ngay = st.date_input("Ngày lập phiếu", value=datetime.date.today())
+                ps_loai = st.selectbox("Phân loại phát sinh", ['Phát sinh khối lượng', 'Sai khác thiết kế', 'Biện pháp thi công phát sinh', 'Khác'])
+                ps_mota = st.text_area("Chi tiết mô tả")
+                ps_nguyennhan = st.text_area("Nguyên nhân cốt lõi")
             with c2:
-                ps_dexuat = st.text_area("Đề xuất xử lý")
-                ps_giatri = st.number_input("Giá trị phát sinh dự kiến (tỷ đồng)", min_value=0.0, step=0.1)
-                ps_tg = st.number_input("Ảnh hưởng tiến độ (ngày)", min_value=0, step=1)
-                ps_link = st.text_input("LINK hồ sơ / RFI")
-                ps_tt = st.selectbox("Trạng thái phê duyệt CĐT", ['Chờ duyệt', 'Đã duyệt', 'Nháp'])
-                ps_nguoi_duyet = st.text_input("Người duyệt")
+                ps_dexuat = st.text_area("Đề xuất hướng xử lý")
+                ps_giatri = st.number_input("Giá trị dự toán phát sinh (tỷ)", min_value=0.0, step=0.1)
+                ps_tg = st.number_input("Thời gian chậm tiến độ dự kiến (ngày)", min_value=0, step=1)
+                ps_link = st.text_input("LINK văn bản phát sinh")
+                ps_tt = st.selectbox("Trạng thái duyệt", ['Chờ duyệt', 'Đã duyệt', 'Nháp'])
+                ps_nguoi_duyet = st.text_input("Cán bộ thẩm định/duyệt")
                 
             submitted_ps = st.form_submit_button("Lưu Đệ trình")
             if submitted_ps:
                 if not ps_ma:
-                    st.error("Vui lòng điền Mã phát sinh.")
+                    st.error("Vui lòng nhập Mã phát sinh.")
                 else:
                     ma_bsc_val = sel_bsc.split(" - ")[0]
                     hang_muc_val = sel_bsc.split(" - ")[1]
@@ -536,45 +728,43 @@ elif choice == "⚠️ 03. Quản lý Phát sinh":
                     """, (ps_ma, ma_bsc_val, hang_muc_val, ngay_str, ps_loai, ps_mota, ps_nguyennhan, ps_dexuat, ps_giatri, ps_tg, ps_link, ps_tt, ps_nguoi_duyet))
                     conn.commit()
                     conn.close()
-                    st.success("Đã đệ trình phát sinh mới thành công!")
+                    st.success("Đệ trình thành công!")
                     st.rerun()
 
     conn = database.get_connection()
     df_ps = pd.read_sql_query("SELECT * FROM phat_sinh", conn)
     conn.close()
-    
     st.dataframe(df_ps, hide_index=True, use_container_width=True)
 
 # --- 6. SUB-TABLE 04: CUNG ỨNG ĐẶC THÙ ---
 elif choice == "🚚 04. Cung ứng Đặc thù":
     st.title("🚚 Sổ 04 - Cung ứng Vật tư Đặc thù / Đột xuất")
-    st.write("Quản lý hồ sơ trình duyệt cung ứng các vật tư/thiết bị đặc thù hoặc phát sinh đột xuất ngoài hợp đồng.")
     
     bsc_options = load_ma_bsc_options()
     
-    with st.expander("➕ Yêu cầu Cung ứng Vật tư Đặc thù"):
+    with st.expander("➕ Yêu cầu Mua sắm Đặc thù"):
         with st.form("add_cu_form"):
             c1, c2 = st.columns(2)
             with c1:
                 cu_ma = st.text_input("Mã yêu cầu (Ví dụ: YC.CT01.03) *")
-                sel_bsc = st.selectbox("Mã BSC", [f"{opt['Ma_BSC']} - {opt['Hang_muc']}" for opt in bsc_options])
-                cu_ngay = st.date_input("Ngày yêu cầu", value=datetime.date.today())
-                cu_loai = st.selectbox("Loại yêu cầu", ['Đặc thù', 'Đột xuất', 'Thay thế chủng loại'])
-                cu_vt = st.text_input("Vật tư / Thiết bị *")
-                cu_lydo = st.text_area("Đặc tả kỹ thuật / Lý do yêu cầu")
+                sel_bsc = st.selectbox("Mã BSC gói thầu", [f"{opt['Ma_BSC']} - {opt['Hang_muc']}" for opt in bsc_options])
+                cu_ngay = st.date_input("Ngày đệ trình mua sắm", value=datetime.date.today())
+                cu_loai = st.selectbox("Tính chất đệ trình", ['Đặc thù', 'Đột xuất', 'Thay thế vật liệu'])
+                cu_vt = st.text_input("Tên vật tư / Thiết bị *")
+                cu_lydo = st.text_area("Đặc tả yêu cầu & Lý do thay đổi")
             with c2:
-                cu_kl = st.number_input("Khối lượng", min_value=0.0, step=1.0)
-                cu_dvt = st.text_input("Đơn vị tính")
-                cu_gia = st.number_input("Giá trị dự kiến (tỷ đồng)", min_value=0.0, step=0.01)
-                cu_trong_ngoai = st.selectbox("Trong/Ngoài HĐ cung ứng", ['Trong HĐCU', 'Ngoài HĐCU'])
-                cu_link = st.text_input("LINK hồ sơ kỹ thuật")
-                cu_tt = st.selectbox("Trạng thái phê duyệt", ['Chờ duyệt', 'Đã duyệt'])
+                cu_kl = st.number_input("Khối lượng yêu cầu", min_value=0.0, step=1.0)
+                cu_dvt = st.text_input("Đơn vị tính (ĐVT)")
+                cu_gia = st.number_input("Giá trị dự toán (tỷ)", min_value=0.0, step=0.01)
+                cu_trong_ngoai = st.selectbox("Trong/Ngoài phạm vi HĐCU", ['Trong HĐCU', 'Ngoài HĐCU'])
+                cu_link = st.text_input("LINK tài liệu kỹ thuật")
+                cu_tt = st.selectbox("Trạng thái duyệt đệ trình", ['Chờ duyệt', 'Đã duyệt'])
                 cu_nguoi_duyet = st.text_input("Người duyệt")
                 
             submitted_cu = st.form_submit_button("Lưu Yêu cầu")
             if submitted_cu:
                 if not cu_ma or not cu_vt:
-                    st.error("Vui lòng điền đầy đủ Mã yêu cầu và Tên Vật tư / Thiết bị.")
+                    st.error("Vui lòng nhập đầy đủ Mã yêu cầu và Tên vật tư.")
                 else:
                     ma_bsc_val = sel_bsc.split(" - ")[0]
                     hang_muc_val = sel_bsc.split(" - ")[1]
@@ -588,44 +778,42 @@ elif choice == "🚚 04. Cung ứng Đặc thù":
                     """, (cu_ma, ma_bsc_val, hang_muc_val, ngay_str, cu_loai, cu_vt, cu_lydo, cu_kl, cu_dvt, cu_gia, cu_trong_ngoai, cu_link, cu_tt, cu_nguoi_duyet))
                     conn.commit()
                     conn.close()
-                    st.success("Đã ghi nhận yêu cầu cung ứng thành công!")
+                    st.success("Đã ghi nhận yêu cầu cung ứng vật tư!")
                     st.rerun()
 
     conn = database.get_connection()
     df_cu = pd.read_sql_query("SELECT * FROM cu_dac_thu", conn)
     conn.close()
-    
     st.dataframe(df_cu, hide_index=True, use_container_width=True)
 
-# --- 7. SUB-TABLE 05: BÙ TIẾN ĐỘ ---
+# --- 7. SUB-TABLE 05: BÙ TIỀN ĐỘ ---
 elif choice == "🚀 05. Bù Tiến độ":
     st.title("🚀 Sổ 05 - Phương án Bù Tiến độ")
-    st.write("Thiết lập và triển khai các biện pháp bù đắp tiến độ (tăng ca, thêm nhân lực, đổi BPTC) khi dự án bị chậm.")
     
     bsc_options = load_ma_bsc_options()
     
-    with st.expander("➕ Lập Phương án Bù Tiến độ"):
+    with st.expander("➕ Thiết lập Phương án Bù Tiến độ"):
         with st.form("add_bu_form"):
             c1, c2 = st.columns(2)
             with c1:
-                sel_bsc = st.selectbox("Mã BSC bị chậm", [f"{opt['Ma_BSC']} - {opt['Hang_muc']}" for opt in bsc_options])
-                bu_ngay = st.date_input("Ngày phát hiện chậm", value=datetime.date.today())
-                bu_cham = st.number_input("Mức chậm (ngày)", min_value=1.0, step=1.0)
-                bu_nguyennhan = st.text_area("Nguyên nhân chậm tiến độ")
-                bu_pa = st.text_input("Giải pháp bù tóm tắt (Ví dụ: Tăng ca tối) *")
+                sel_bsc = st.selectbox("Chọn dự án bị chậm", [f"{opt['Ma_BSC']} - {opt['Hang_muc']}" for opt in bsc_options])
+                bu_ngay = st.date_input("Ngày lập phương án", value=datetime.date.today())
+                bu_cham = st.number_input("Số ngày bị trễ (ngày)", min_value=1.0, step=1.0)
+                bu_nguyennhan = st.text_area("Nguyên nhân cốt lõi chậm trễ")
+                bu_pa = st.text_input("Tên giải pháp bù nhanh *")
             with c2:
-                bu_chitiet = st.text_area("Chi tiết giải pháp triển khai")
-                bu_moc = st.date_input("Mốc cam kết hoàn thành bù")
-                bu_link = st.text_input("LINK tài liệu phương án")
-                bu_tt_duyet = st.selectbox("Trạng thái duyệt phương án", ['Chờ duyệt', 'Đã duyệt'])
-                bu_nguoi = st.text_input("Người duyệt")
-                bu_kq = st.text_input("Kết quả thực hiện bù")
-                bu_tt_trienkhai = st.selectbox("Trạng thái Triển khai", ['Đang thực hiện', 'Đã hoàn thành', 'Đóng'])
+                bu_chitiet = st.text_area("Kế hoạch triển khai chi tiết")
+                bu_moc = st.date_input("Hạn cuối cam kết bù xong")
+                bu_link = st.text_input("LINK phương án được duyệt")
+                bu_tt_duyet = st.selectbox("Tình trạng duyệt phương án", ['Chờ duyệt', 'Đã duyệt'])
+                bu_nguoi = st.text_input("Cán bộ duyệt")
+                bu_kq = st.text_input("Đánh giá kết quả thực hiện bù")
+                bu_tt_trienkhai = st.selectbox("Trạng thái triển khai", ['Đang thực hiện', 'Đã hoàn thành', 'Đóng'])
                 
             submitted_bu = st.form_submit_button("Lưu Phương án")
             if submitted_bu:
                 if not bu_pa:
-                    st.error("Vui lòng điền Giải pháp bù tóm tắt.")
+                    st.error("Vui lòng điền Tên giải pháp bù.")
                 else:
                     ma_bsc_val = sel_bsc.split(" - ")[0]
                     hang_muc_val = sel_bsc.split(" - ")[1]
@@ -640,49 +828,45 @@ elif choice == "🚀 05. Bù Tiến độ":
                     """, (ma_bsc_val, hang_muc_val, ngay_str, bu_cham, bu_nguyennhan, bu_pa, bu_chitiet, moc_str, bu_link, bu_tt_duyet, bu_nguoi, bu_kq, bu_tt_trienkhai))
                     conn.commit()
                     conn.close()
-                    st.success("Đã lưu phương án bù tiến độ thành công!")
+                    st.success("Thiết lập phương án bù tiến độ thành công!")
                     st.rerun()
 
     conn = database.get_connection()
     df_bu = pd.read_sql_query("SELECT * FROM bu_tien_do", conn)
     conn.close()
-    
     st.dataframe(df_bu, hide_index=True, use_container_width=True)
 
 # --- 8. AI ASSISTANT VIEW ---
 elif choice == "🤖 Trợ lý AI Thông minh":
-    st.title("🤖 Trợ lý AI Thông minh (Gemini API)")
-    st.subheader("Nhập liệu thô báo cáo & Tự động chiết xuất thông tin")
+    st.title("🤖 Trợ lý AI Phân tích Báo cáo Xây dựng")
     
     st.info(
-        "Nhập báo cáo thô tiến độ hàng tuần của công trường vào ô dưới đây. "
-        "Gemini AI sẽ tự động phân tích để điền các kết quả tuần, ghi chép nguyên nhân, "
-        "và đồng thời chèn 1 dòng kế hoạch bù tiến độ vào Sổ 05 nếu công việc bị trễ."
+        "Nhập báo cáo tiến độ tuần bằng ngôn ngữ tự nhiên từ công trường. Trợ lý AI sẽ: \n"
+        "1. Xác định đúng hạng mục công việc và Mã BSC tương ứng.\n"
+        "2. Điền kết quả tiến độ và nguyên nhân vào Bảng tổng hợp.\n"
+        "3. Tự động khởi tạo phiếu khắc phục bù tiến độ ở trạng thái 'Đang thực hiện' trong Sổ 05."
     )
     
     raw_report = st.text_area(
-        "📝 Dán báo cáo thô tại đây:",
+        "📝 Nhập báo cáo thô của tuần:",
         height=150,
-        placeholder="Ví dụ: Hạng mục CT-01 tuần này đạt kết quả thực tế là 22%, chậm mất 3% so với kế hoạch do mưa lớn kéo dài và nền đất bị yếu, công trường đang phải tăng ca đêm để bù tiến độ"
+        placeholder="Ví dụ: Báo cáo hạng mục CT-01 Nhà mẫu tuần này đã đạt 22%, chậm 3% do mưa bão lớn kéo dài và nền đất bị sụt yếu. Công trường đang phải bố trí tăng ca đêm để lấy lại tiến độ."
     )
     
-    if st.button("🚀 Phân tích & Cập nhật Hệ thống", type="primary"):
+    if st.button("🚀 Phân tích & Đồng bộ vào Hệ thống", type="primary"):
         if not raw_report:
-            st.warning("Vui lòng dán báo cáo thô trước.")
+            st.warning("Vui lòng nhập báo cáo trước.")
         else:
-            with st.spinner("Gemini AI đang làm việc..."):
+            with st.spinner("AI đang giải trình và liên kết dữ liệu hệ thống..."):
                 try:
-                    # Load all projects to match
                     projects = business_logic.get_all_projects_calculated()
-                    
-                    # Call Gemini Parser
                     parsed_json = ai_service.parse_raw_report(
                         raw_report, 
                         projects, 
                         st.session_state.get('gemini_api_key')
                     )
                     
-                    st.success("🤖 Đã phân tích thành công!")
+                    st.success("🤖 Phân tích AI hoàn tất!")
                     st.json(parsed_json)
                     
                     ma_bsc_matched = parsed_json.get("ma_bsc")
@@ -692,7 +876,7 @@ elif choice == "🤖 Trợ lý AI Thông minh":
                     bu_info = parsed_json.get("bu_tien_do")
                     
                     if not ma_bsc_matched:
-                        st.warning("⚠️ Không tìm thấy Mã BSC phù hợp trong danh sách từ nội dung báo cáo.")
+                        st.warning("⚠️ Không tìm thấy Mã BSC phù hợp tương ứng trong báo cáo này.")
                     else:
                         conn = database.get_connection()
                         cursor = conn.cursor()
@@ -707,9 +891,9 @@ elif choice == "🤖 Trợ lý AI Thông minh":
                                 SET {kq_col} = ?, {dg_col} = ? 
                                 WHERE Ma_BSC = ?
                             """, (week_kq, week_danh_gia, ma_bsc_matched))
-                            st.write(f"✅ Đã cập nhật kết quả tuần {week_index} vào Bảng tổng hợp.")
+                            st.write(f"✅ Đã tự động cập nhật kết quả tuần {week_index} vào dòng Master.")
                             
-                        # 2. Insert into 05_Bu_tien_do if needed
+                        # 2. Insert into 05_Bu_tien_do
                         if bu_info:
                             cursor.execute("SELECT Hang_muc FROM master_bang_tonghop WHERE Ma_BSC = ?", (ma_bsc_matched,))
                             res_h = cursor.fetchone()
@@ -729,10 +913,10 @@ elif choice == "🤖 Trợ lý AI Thông minh":
                                 bu_info.get("giai_phap"), 
                                 "Đang thực hiện"
                             ))
-                            st.write("✅ Đã chèn 1 dòng phương án bù tiến độ mới ở trạng thái 'Đang thực hiện' vào Sổ 05.")
+                            st.write("✅ Đã tự động thêm 1 dòng phương án bù tiến độ (Sổ 05) ở trạng thái 'Đang thực hiện'.")
                             
                         conn.commit()
                         conn.close()
-                        st.success("🎉 Hệ thống đã được cập nhật dữ liệu tự động từ AI!")
+                        st.success("🎉 Hệ thống đã được đồng bộ dữ liệu tự động thành công!")
                 except Exception as ex:
-                    st.error(f"Lỗi khi gọi API hoặc cập nhật cơ sở dữ liệu: {ex}")
+                    st.error(f"Lỗi: {ex}")
