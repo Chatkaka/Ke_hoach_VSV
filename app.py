@@ -169,6 +169,83 @@ def load_ma_bsc_options():
     conn.close()
     return [{"id": r[0], "Ma_BSC": r[1], "Hang_muc": r[2]} for r in rows]
 
+# --- Pandas Styling Helper Functions ---
+def style_master_rows(df):
+    styles = pd.DataFrame('', index=df.index, columns=df.columns)
+    has_bsc_col = "Mã BSC" in df.columns
+    for idx in df.index:
+        is_wbs = False
+        if has_bsc_col:
+            is_wbs = df.loc[idx, "Mã BSC"] == "--- WBS ---"
+            
+        if is_wbs:
+            for col in df.columns:
+                styles.loc[idx, col] = 'background-color: #f1f5f9; color: #475569; font-weight: bold; font-style: italic;'
+        else:
+            for col in df.columns:
+                val = df.loc[idx, col]
+                val_str = str(val).strip() if val is not None else ""
+                
+                # 1. Color warning column
+                if col == "Cảnh báo":
+                    if "🔴" in val_str:
+                        styles.loc[idx, col] = 'background-color: #fee2e2; color: #b91c1c; font-weight: bold;'
+                    elif "🟠" in val_str:
+                        styles.loc[idx, col] = 'background-color: #ffedd5; color: #c2410c; font-weight: bold;'
+                    elif "🟡" in val_str:
+                        styles.loc[idx, col] = 'background-color: #fefce8; color: #a16207; font-weight: bold;'
+                    elif "🟢" in val_str:
+                        styles.loc[idx, col] = 'background-color: #f0fdf4; color: #15803d; font-weight: bold;'
+                
+                # 2. Status columns
+                elif col in ("ĐK1 HSKT đủ", "ĐK2 HĐCU ký", "ĐK3 KHTK duyệt", "ĐIỀU KIỆN ĐỦ", 
+                             "TT HSTKTC", "TT SPECS", "TT BOQ/KL", "TT LCNT", "TT Ký HĐCU", "Khởi công"):
+                    if val_str in ("✔", "Đã phát hành", "Đã cấp", "Đã bàn giao", "Đã ký", "Đã CU", "Đã duyệt", "Hoàn thiện", "ĐỦ ĐIỀU KIỆN"):
+                        styles.loc[idx, col] = 'background-color: #f0fdf4; color: #166534; font-weight: 500;'
+                    elif val_str in ("✘", "Chưa có TK", "Chưa có", "Chưa bàn giao", "Chưa LCNT", "Chưa CU", "Chưa trình", "CHƯA ĐỦ ĐK"):
+                        styles.loc[idx, col] = 'background-color: #fee2e2; color: #991b1b; font-weight: 500;'
+                    elif any(word in val_str for word in ("Đang", "Chờ", "Theo đợt", "Điều chỉnh")):
+                        styles.loc[idx, col] = 'background-color: #fefce8; color: #854d0e; font-weight: 500;'
+                        
+                # 3. Numeric cells color formatting (soft styling)
+                elif "% HĐ/NS (Tính)" in col:
+                    try:
+                        num_val = float(val) if val not in ("", None) else 0.0
+                        if num_val > 100.0:
+                            styles.loc[idx, col] = 'color: #b91c1c; font-weight: 700;'
+                        else:
+                            styles.loc[idx, col] = 'color: #15803d; font-weight: 500;'
+                    except ValueError:
+                        pass
+    return styles
+
+def style_subtable_rows(df):
+    styles = pd.DataFrame('', index=df.index, columns=df.columns)
+    for col in df.columns:
+        for idx in df.index:
+            val = df.loc[idx, col]
+            val_str = str(val).strip() if val is not None else ""
+            
+            # Highlight statuses
+            if col in ("TT_duyet", "TT_lap", "Dat_YCKT_CDT", "TT_Phe_duyet", "TT_Trien_khai", "Trong_Ngoai_HDCU", "TT_cung_ung"):
+                if val_str in ("Đã duyệt", "Đã lập", "Có", "Trong HĐCU", "Đã hoàn thành", "Đã ký", "Đã CU"):
+                    styles.loc[idx, col] = 'background-color: #f0fdf4; color: #166534; font-weight: 500;'
+                elif val_str in ("Chưa lập", "Từ chối", "Chưa", "Ngoài HĐCU", "Từ chối duyệt", "Đóng"):
+                    styles.loc[idx, col] = 'background-color: #fee2e2; color: #991b1b; font-weight: 500;'
+                elif any(word in val_str for word in ("Đang", "Chờ", "Đang sửa đổi", "Đang thực hiện", "Nháp")):
+                    styles.loc[idx, col] = 'background-color: #fefce8; color: #854d0e; font-weight: 500;'
+                    
+            # Highlight values
+            elif col in ("Gia_tri_phat_sinh", "Muc_cham_ngay"):
+                try:
+                    num_val = float(val) if val not in ("", None) else 0.0
+                    if num_val > 0:
+                        styles.loc[idx, col] = 'color: #b91c1c; font-weight: 600;'
+                except ValueError:
+                    pass
+    return styles
+
+
 # --- TOP BANNER (RENDER ON EVERY PAGE) ---
 st.markdown("""
 <div class="top-banner">
@@ -356,7 +433,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     # Dynamic Tabs for grouped views - MATCHING THE RED HIGHLIGHT IN IMAGES AND UX SMOOTHNESS
     st.write("### 📑 Bộ lọc các cột theo chức năng kiểm soát")
     tab_labels = [
-        "🔴 A. Đầu vào CĐT (Phần khoanh đỏ)",
+        "🔴 A. Đầu vào CĐT",
         "🚚 B. Cung ứng & Hợp đồng",
         "⚡ D. Chốt chặn Khởi công",
         "💰 E. Ngân sách & Chi phí",
@@ -365,6 +442,65 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     ]
     t1, t2, t3, t4, t5, t6 = st.tabs(tab_labels)
     
+    # WBS Tree indent formatting
+    def format_wbs_name(hang_muc, tt):
+        if not tt:
+            return hang_muc
+        parts = str(tt).split('.')
+        if len(parts) == 1:
+            return hang_muc
+        elif len(parts) == 2:
+            return f"  └─ {hang_muc}"
+        else:
+            indent = "    " * (len(parts) - 1)
+            return f"{indent}└─ {hang_muc}"
+
+    # Master Column configuration
+    master_column_config = {
+        "TT": st.column_config.TextColumn("TT", width=60),
+        "Nhóm công trình": st.column_config.TextColumn("Nhóm công trình", width=140),
+        "Mã BSC": st.column_config.TextColumn("Mã BSC", width=120),
+        "Hạng mục / Công việc": st.column_config.TextColumn("Hạng mục / Công việc", width=350),
+        "Phụ trách": st.column_config.TextColumn("Phụ trách", width=120),
+        "Ngày BD (YC CĐT)": st.column_config.DateColumn("Ngày BD (YC CĐT)", format="YYYY-MM-DD", width=120),
+        "Ngày KT (YC CĐT)": st.column_config.DateColumn("Ngày KT (YC CĐT)", format="YYYY-MM-DD", width=120),
+        "Ngân sách (tỷ)": st.column_config.NumberColumn("Ngân sách (tỷ)", format="%.2f tỷ", width=110),
+        "KH phát hành HSTKTC": st.column_config.DateColumn("KH phát hành HSTKTC", format="YYYY-MM-DD", width=140),
+        "TT HSTKTC": st.column_config.TextColumn("TT HSTKTC", width=110),
+        "TT SPECS": st.column_config.TextColumn("TT SPECS", width=100),
+        "TT BOQ/KL": st.column_config.TextColumn("TT BOQ/KL", width=110),
+        "KH LCNT": st.column_config.DateColumn("KH LCNT", format="YYYY-MM-DD", width=110),
+        "TT LCNT": st.column_config.TextColumn("TT LCNT", width=100),
+        "KH Ký HĐCU": st.column_config.DateColumn("KH Ký HĐCU", format="YYYY-MM-DD", width=110),
+        "TT Ký HĐCU": st.column_config.TextColumn("TT Ký HĐCU", width=110),
+        "Giá trị HĐCU (tỷ)": st.column_config.NumberColumn("Giá trị HĐCU (tỷ)", format="%.2f tỷ", width=130),
+        "% HĐ/NS (Tính)": st.column_config.NumberColumn("% HĐ/NS (Tính)", format="%.1f%%", width=110),
+        "ĐK1 HSKT đủ": st.column_config.TextColumn("ĐK1 HSKT đủ", width=105),
+        "ĐK2 HĐCU ký": st.column_config.TextColumn("ĐK2 HĐCU ký", width=105),
+        "ĐK3 KHTK duyệt": st.column_config.TextColumn("ĐK3 KHTK duyệt", width=120),
+        "ĐIỀU KIỆN ĐỦ": st.column_config.TextColumn("ĐIỀU KIỆN ĐỦ", width=140),
+        "NGÀY KHỞI CÔNG": st.column_config.DateColumn("NGÀY KHỞI CÔNG", format="YYYY-MM-DD", width=130),
+        "HS tiền KC (duyệt)": st.column_config.NumberColumn("HS tiền KC (duyệt)", format="%d bộ", width=130),
+        "Lũy kế HĐ A-B": st.column_config.NumberColumn("Lũy kế HĐ A-B", format="%.2f tỷ", width=135),
+        "Lũy kế Phát sinh B-B'": st.column_config.NumberColumn("Lũy kế Phát sinh B-B'", format="%.2f tỷ", width=140),
+        "Tổng Chi phí Thực tế": st.column_config.NumberColumn("Tổng Chi phí Thực tế", format="%.2f tỷ", width=140),
+        "Cảnh báo": st.column_config.TextColumn("Cảnh báo", width=140),
+        "KH KLCV Tháng": st.column_config.ProgressColumn("KH Tháng", min_value=0.0, max_value=100.0, format="%.1f%%", width=120),
+        "KQ KLCV Thực tế": st.column_config.ProgressColumn("KQ Thực tế", min_value=0.0, max_value=100.0, format="%.1f%%", width=120),
+        "Đánh giá & Giải pháp Tháng": st.column_config.TextColumn("Đánh giá & Giải pháp Tháng", width=250),
+        "T1 KQ": st.column_config.NumberColumn("T1 KQ", format="%.1f%%", width=85),
+        "T2 KQ": st.column_config.NumberColumn("T2 KQ", format="%.1f%%", width=85),
+        "T3 KQ": st.column_config.NumberColumn("T3 KQ", format="%.1f%%", width=85),
+        "T4 KQ": st.column_config.NumberColumn("T4 KQ", format="%.1f%%", width=85),
+        "Gói thầu (PL)": st.column_config.TextColumn("Gói thầu (PL)", width=110),
+        "Ngày BD": st.column_config.DateColumn("Ngày BD", format="YYYY-MM-DD", width=120),
+        "Ngày KT": st.column_config.DateColumn("Ngày KT", format="YYYY-MM-DD", width=120),
+        "Khởi công": st.column_config.TextColumn("Khởi công", width=130),
+    }
+
+    # Sort projects for a single consolidated view (keeping headers fixed)
+    projects_sorted = sorted(projects, key=lambda x: (x['Nhom_CT'] or "", x['TT'] or ""))
+
     def render_project_grid(proj_list, cols_to_show, key_suffix=""):
         display_list = []
         for p in proj_list:
@@ -373,140 +509,163 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
             for col_key, col_name in cols_to_show.items():
                 if col_key == "Ma_BSC" and not p['Ma_BSC']:
                     row_dict[col_name] = "--- WBS ---"
+                elif col_key == "Hang_muc_formatted":
+                    row_dict[col_name] = format_wbs_name(p['Hang_muc'], p['TT'])
                 elif col_key in ("DK1_HSKT", "DK2_HDCU", "DK3_KHTK"):
                     row_dict[col_name] = "N/A" if is_wbs else ("✔" if p[col_key] else "✘")
-                elif col_key in ("Dieu_kien_du", "Co_Canh_bao"):
+                elif col_key == "Dieu_kien_du":
                     row_dict[col_name] = "---" if is_wbs else p[col_key]
-                elif col_key in ("KH_Thang", "KQ_Thang") and p[col_key] is not None:
-                    row_dict[col_name] = f"{p[col_key] * 100:.1f}%"
+                elif col_key == "Co_Canh_bao":
+                    if is_wbs:
+                        row_dict[col_name] = "---"
+                    else:
+                        warning_val = p[col_key]
+                        if warning_val == 'RED':
+                            row_dict[col_name] = "🔴 ĐỎ (Rủi ro)"
+                        elif warning_val == 'ORANGE':
+                            row_dict[col_name] = "🟠 CAM (Theo dõi)"
+                        elif warning_val == 'YELLOW':
+                            row_dict[col_name] = "🟡 VÀNG (Chậm nhẹ)"
+                        else:
+                            row_dict[col_name] = "🟢 XANH (Bình thường)"
+                elif col_key in ("KH_Thang", "KQ_Thang", "Percent_HDCU_NS", "T1_KQ", "T2_KQ", "T3_KQ", "T4_KQ"):
+                    row_dict[col_name] = p[col_key] * 100 if p[col_key] is not None else None
                 else:
                     row_dict[col_name] = p[col_key] if p[col_key] is not None else ""
             display_list.append(row_dict)
             
         df = pd.DataFrame(display_list)
-        st.dataframe(df, hide_index=True, use_container_width=True, key=f"grid_{key_suffix}")
+        styled_df = df.style.apply(style_master_rows, axis=None)
+        st.dataframe(
+            styled_df,
+            column_config=master_column_config,
+            hide_index=True,
+            use_container_width=True,
+            key=f"grid_{key_suffix}"
+        )
 
-    # Tabs rendering logic
-    for g_name in nhom_ct_list:
-        st.write(f"---")
-        st.write(f"### 🏢 Nhóm công trình: **{g_name}**")
-        group_projects = [p for p in projects if p['Nhom_CT'] == g_name]
+    # 1. TAB A: ĐẦU VÀO CĐT
+    with t1:
+        cols_a = {
+            "TT": "TT",
+            "Nhom_CT": "Nhóm công trình",
+            "Ma_BSC": "Mã BSC",
+            "Hang_muc_formatted": "Hạng mục / Công việc",
+            "Phu_trach": "Phụ trách",
+            "Ngay_BD_YC": "Ngày BD (YC CĐT)",
+            "Ngay_KT_YC": "Ngày KT (YC CĐT)",
+            "Ngan_sach": "Ngân sách (tỷ)",
+            "KH_phat_hanh_HSTKTC": "KH phát hành HSTKTC",
+            "TT_HSTKTC": "TT HSTKTC",
+            "TT_SPECS": "TT SPECS",
+            "TT_BOQ": "TT BOQ/KL"
+        }
+        render_project_grid(projects_sorted, cols_a, "a")
         
-        # 1. TAB A: ĐẦU VÀO CĐT (Missing columns from image red box)
-        with t1:
-            cols_a = {
-                "TT": "TT",
-                "Ma_BSC": "Mã BSC",
-                "Hang_muc": "Hạng mục / Công việc",
-                "Phu_trach": "Phụ trách",
-                "Ngay_BD_YC": "Ngày BD (YC CĐT)",
-                "Ngay_KT_YC": "Ngày KT (YC CĐT)",
-                "Ngan_sach": "Ngân sách (tỷ)",
-                "KH_phat_hanh_HSTKTC": "KH phát hành HSTKTC",
-                "TT_HSTKTC": "TT HSTKTC",
-                "TT_SPECS": "TT SPECS",
-                "TT_BOQ": "TT BOQ/KL"
-            }
-            render_project_grid(group_projects, cols_a, f"a_{g_name}")
+    # 2. TAB B: CUNG ỨNG & HỢP ĐỒNG
+    with t2:
+        cols_b = {
+            "TT": "TT",
+            "Nhom_CT": "Nhóm công trình",
+            "Ma_BSC": "Mã BSC",
+            "Hang_muc_formatted": "Hạng mục / Công việc",
+            "KH_LCNT": "KH LCNT",
+            "TT_LCNT": "TT LCNT",
+            "KH_Ky_HDCU": "KH Ký HĐCU",
+            "TT_Ky_HDCU": "TT Ký HĐCU",
+            "Gia_tri_HDCU": "Giá trị HĐCU (tỷ)",
+            "Percent_HDCU_NS": "% HĐ/NS (Tính)"
+        }
+        render_project_grid(projects_sorted, cols_b, "b")
+
+    # 3. TAB D: CHỐT CHẶN KHỞI CÔNG
+    with t3:
+        cols_c = {
+            "TT": "TT",
+            "Nhom_CT": "Nhóm công trình",
+            "Ma_BSC": "Mã BSC",
+            "Hang_muc_formatted": "Hạng mục / Công việc",
+            "DK1_HSKT": "ĐK1 HSKT đủ",
+            "DK2_HDCU": "ĐK2 HĐCU ký",
+            "DK3_KHTK": "ĐK3 KHTK duyệt",
+            "Dieu_kien_du": "ĐIỀU KIỆN ĐỦ",
+            "Ngay_BD_Khoi_Cong": "NGÀY KHỞI CÔNG",
+            "Approved_HSo_Count": "HS tiền KC (duyệt)"
+        }
+        render_project_grid(projects_sorted, cols_c, "c")
+
+    # 4. TAB E: NGÂN SÁCH & CHI PHÍ
+    with t4:
+        cols_d = {
+            "TT": "TT",
+            "Nhom_CT": "Nhóm công trình",
+            "Ma_BSC": "Mã BSC",
+            "Hang_muc_formatted": "Hạng mục / Công việc",
+            "Ngan_sach": "Ngân sách (tỷ)",
+            "Luy_ke_HDCU": "Lũy kế HĐ A-B",
+            "Luy_ke_Phat_sinh": "Lũy kế Phát sinh B-B'",
+            "Total_Cost": "Tổng Chi phí Thực tế",
+            "Co_Canh_bao": "Cảnh báo"
+        }
+        render_project_grid(projects_sorted, cols_d, "d")
+
+    # 5. TAB G: QUẢN LÝ THI CÔNG
+    with t5:
+        cols_g = {
+            "TT": "TT",
+            "Nhom_CT": "Nhóm công trình",
+            "Ma_BSC": "Mã BSC",
+            "Hang_muc_formatted": "Hạng mục / Công việc",
+            "KH_Thang": "KH KLCV Tháng",
+            "KQ_Thang": "KQ KLCV Thực tế",
+            "Danh_gia_Thang": "Đánh giá & Giải pháp Tháng",
+            "T1_KQ": "T1 KQ",
+            "T2_KQ": "T2 KQ",
+            "T3_KQ": "T3 KQ",
+            "T4_KQ": "T4 KQ"
+        }
+        render_project_grid(projects_sorted, cols_g, "g")
+
+    # 6. TAB ALL (TẤT CẢ DỮ LIỆU)
+    with t6:
+        cols_all = {
+            "TT": "TT",
+            "Nhom_CT": "Nhóm công trình",
+            "Ma_BSC": "Mã BSC",
+            "Goi_thau": "Gói thầu (PL)",
+            "Hang_muc_formatted": "Hạng mục / Công việc",
+            "Phu_trach": "Phụ trách",
+            "Ngay_BD_YC": "Ngày BD",
+            "Ngay_KT_YC": "Ngày KT",
+            "Ngan_sach": "Ngân sách (tỷ)",
+            "Dieu_kien_du": "Khởi công",
+            "Co_Canh_bao": "Cảnh báo"
+        }
+        render_project_grid(projects_sorted, cols_all, "all")
+
+    # Unified Action layout below the tabs (super clean and non-repeating)
+    st.write("---")
+    st.write("⚙️ *Hành động nhanh cho Hạng mục công việc:*")
+    cols = st.columns(4)
+    with cols[0]:
+        p_to_edit = st.selectbox("Chọn hạng mục chỉnh sửa tiến trình", [f"{p['id']} - {p['Hang_muc']}" for p in projects_sorted], key="sel_edit_unified")
+    
+    with cols[1]:
+        if st.button("✏️ Cập nhật tiến trình", key="btn_edit_unified"):
+            p_id = int(p_to_edit.split(" - ")[0])
+            st.session_state['edit_project_id'] = p_id
+            st.session_state['show_edit_form'] = True
             
-        # 2. TAB B: CUNG ỨNG
-        with t2:
-            cols_b = {
-                "TT": "TT",
-                "Ma_BSC": "Mã BSC",
-                "Hang_muc": "Hạng mục / Công việc",
-                "KH_LCNT": "KH LCNT",
-                "TT_LCNT": "TT LCNT",
-                "KH_Ky_HDCU": "KH Ký HĐCU",
-                "TT_Ky_HDCU": "TT Ký HĐCU",
-                "Gia_tri_HDCU": "Giá trị HĐCU (tỷ)",
-                "Percent_HDCU_NS": "% HĐ/NS (Tính)"
-            }
-            render_project_grid(group_projects, cols_b, f"b_{g_name}")
-
-        # 3. TAB D: CHỐT CHẶN KHỞI CÔNG
-        with t3:
-            cols_c = {
-                "TT": "TT",
-                "Ma_BSC": "Mã BSC",
-                "Hang_muc": "Hạng mục / Công việc",
-                "DK1_HSKT": "ĐK1 HSKT đủ",
-                "DK2_HDCU": "ĐK2 HĐCU ký",
-                "DK3_KHTK": "ĐK3 KHTK duyệt",
-                "Dieu_kien_du": "ĐIỀU KIỆN ĐỦ",
-                "Ngay_BD_Khoi_Cong": "NGÀY KHỞI CÔNG",
-                "Approved_HSo_Count": "HS tiền KC (duyệt)"
-            }
-            render_project_grid(group_projects, cols_c, f"c_{g_name}")
-
-        # 4. TAB E: NGÂN SÁCH
-        with t4:
-            cols_d = {
-                "TT": "TT",
-                "Ma_BSC": "Mã BSC",
-                "Hang_muc": "Hạng mục / Công việc",
-                "Ngan_sach": "Ngân sách (tỷ)",
-                "Luy_ke_HDCU": "Lũy kế HĐ A-B",
-                "Luy_ke_Phat_sinh": "Lũy kế Phát sinh B-B'",
-                "Total_Cost": "Tổng Chi phí Thực tế",
-                "Co_Canh_bao": "Trạng thái Cảnh báo"
-            }
-            render_project_grid(group_projects, cols_d, f"d_{g_name}")
-
-        # 5. TAB G: QUẢN LÝ THI CÔNG
-        with t5:
-            cols_g = {
-                "TT": "TT",
-                "Ma_BSC": "Mã BSC",
-                "Hang_muc": "Hạng mục / Công việc",
-                "KH_Thang": "KH KLCV Tháng",
-                "KQ_Thang": "KQ KLCV Thực tế",
-                "Danh_gia_Thang": "Đánh giá & Giải pháp Tháng",
-                "T1_KQ": "T1 KQ",
-                "T2_KQ": "T2 KQ",
-                "T3_KQ": "T3 KQ",
-                "T4_KQ": "T4 KQ"
-            }
-            render_project_grid(group_projects, cols_g, f"g_{g_name}")
-
-        # 6. TAB ALL
-        with t6:
-            cols_all = {
-                "TT": "TT",
-                "Ma_BSC": "Mã BSC",
-                "Goi_thau": "Gói thầu (PL)",
-                "Hang_muc": "Hạng mục / Công việc",
-                "Phu_trach": "Phụ trách",
-                "Ngay_BD_YC": "Ngày BD",
-                "Ngay_KT_YC": "Ngày KT",
-                "Ngan_sach": "Ngân sách",
-                "Dieu_kien_du": "Khởi công",
-                "Co_Canh_bao": "Cảnh báo"
-            }
-            render_project_grid(group_projects, cols_all, f"all_{g_name}")
-
-        # Action layout
-        st.write("⚙️ *Hành động nhanh cho Nhóm:*")
-        cols = st.columns(4)
-        with cols[0]:
-            p_to_edit = st.selectbox("Chọn hạng mục chỉnh sửa tiến trình", [f"{p['id']} - {p['Hang_muc']}" for p in group_projects], key=f"sel_edit_{g_name}")
-        
-        with cols[1]:
-            if st.button("✏️ Cập nhật tiến trình", key=f"btn_edit_{g_name}"):
-                p_id = int(p_to_edit.split(" - ")[0])
-                st.session_state['edit_project_id'] = p_id
-                st.session_state['show_edit_form'] = True
-                
-        with cols[2]:
-            if st.button("🗑️ Xóa hạng mục", key=f"btn_delete_{g_name}"):
-                p_id = int(p_to_edit.split(" - ")[0])
-                conn = database.get_connection()
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM master_bang_tonghop WHERE id = ?", (p_id,))
-                conn.commit()
-                conn.close()
-                st.success("Đã xóa hạng mục thành công!")
-                st.rerun()
+    with cols[2]:
+        if st.button("🗑️ Xóa hạng mục", key="btn_delete_unified"):
+            p_id = int(p_to_edit.split(" - ")[0])
+            conn = database.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM master_bang_tonghop WHERE id = ?", (p_id,))
+            conn.commit()
+            conn.close()
+            st.success("Đã xóa hạng mục thành công!")
+            st.rerun()
 
     # Form updating details (Redesigned to be tabs based and super smooth)
     if st.session_state.get('show_edit_form') and st.session_state.get('edit_project_id'):
@@ -636,7 +795,28 @@ elif choice == "📂 01. Hồ sơ Tiền khởi công":
     conn = database.get_connection()
     df_hso = pd.read_sql_query("SELECT id, Ma_BSC, Hang_muc, Loai_ho_so, Ten_san_pham, Link_luu_tru, Ngay_HT, Nguoi_lap, Nguoi_duyet, TT_duyet FROM hso_tienkc", conn)
     conn.close()
-    st.dataframe(df_hso, hide_index=True, use_container_width=True)
+    
+    hso_column_config = {
+        "id": None,
+        "Ma_BSC": st.column_config.TextColumn("Mã BSC", width=120),
+        "Hang_muc": st.column_config.TextColumn("Hạng mục", width=200),
+        "Loai_ho_so": st.column_config.TextColumn("Loại hồ sơ", width=110),
+        "Ten_san_pham": st.column_config.TextColumn("Tên hồ sơ / văn bản", width=300),
+        "Link_luu_tru": st.column_config.LinkColumn("Link lưu trữ", width=180, display_text="Xem tài liệu 📄"),
+        "Ngay_HT": st.column_config.DateColumn("Ngày hoàn thành", format="YYYY-MM-DD", width=130),
+        "Nguoi_lap": st.column_config.TextColumn("Người lập", width=120),
+        "Nguoi_duyet": st.column_config.TextColumn("Người duyệt", width=120),
+        "TT_duyet": st.column_config.TextColumn("Trạng thái duyệt", width=130)
+    }
+    
+    styled_df = df_hso.style.apply(style_subtable_rows, axis=None)
+    st.dataframe(
+        styled_df,
+        column_config=hso_column_config,
+        hide_index=True,
+        use_container_width=True,
+        key="grid_hso_tienkc"
+    )
 
 # --- 4. SUB-TABLE 02: KẾ HOẠCH THÁNG/TUẦN ---
 elif choice == "📅 02. Kế hoạch Tháng/Tuần":
@@ -683,9 +863,33 @@ elif choice == "📅 02. Kế hoạch Tháng/Tuần":
                     st.rerun()
 
     conn = database.get_connection()
-    df_kh = pd.read_sql_query("SELECT * FROM kh_thang_tuan", conn)
+    df_kh = pd.read_sql_query("SELECT id, Ma_BSC, Hang_muc, Thang, Loai_tai_lieu, Noi_dung_chinh, Dat_YCKT_CDT, Link_tai_lieu, TT_lap, TT_duyet, Nguoi_lap, Nguoi_duyet, Ngay_duyet FROM kh_thang_tuan", conn)
     conn.close()
-    st.dataframe(df_kh, hide_index=True, use_container_width=True)
+    
+    kh_column_config = {
+        "id": None,
+        "Ma_BSC": st.column_config.TextColumn("Mã BSC", width=120),
+        "Hang_muc": st.column_config.TextColumn("Hạng mục", width=200),
+        "Thang": st.column_config.TextColumn("Tháng", width=90),
+        "Loai_tai_lieu": st.column_config.TextColumn("Loại tài liệu", width=180),
+        "Noi_dung_chinh": st.column_config.TextColumn("Nội dung chính", width=280),
+        "Dat_YCKT_CDT": st.column_config.TextColumn("Đạt YCKT CĐT?", width=130),
+        "Link_tai_lieu": st.column_config.LinkColumn("Link tài liệu", width=150, display_text="Xem kế hoạch 📄"),
+        "TT_lap": st.column_config.TextColumn("TT Lập", width=100),
+        "TT_duyet": st.column_config.TextColumn("TT Duyệt", width=110),
+        "Nguoi_lap": st.column_config.TextColumn("Người lập", width=120),
+        "Nguoi_duyet": st.column_config.TextColumn("Người duyệt", width=120),
+        "Ngay_duyet": st.column_config.DateColumn("Ngày duyệt", format="YYYY-MM-DD", width=120)
+    }
+    
+    styled_df = df_kh.style.apply(style_subtable_rows, axis=None)
+    st.dataframe(
+        styled_df,
+        column_config=kh_column_config,
+        hide_index=True,
+        use_container_width=True,
+        key="grid_kh_thang_tuan"
+    )
 
 # --- 5. SUB-TABLE 03: QUẢN LÝ PHÁT SINH ---
 elif choice == "⚠️ 03. Quản lý Phát sinh":
@@ -732,9 +936,37 @@ elif choice == "⚠️ 03. Quản lý Phát sinh":
                     st.rerun()
 
     conn = database.get_connection()
-    df_ps = pd.read_sql_query("SELECT * FROM phat_sinh", conn)
+    df_ps = pd.read_sql_query("SELECT id, Ma_PS, Ma_BSC, Hang_muc, Ngay_PS, Loai, Mo_ta, Nguyen_nhan, De_xuat_xu_ly, Gia_tri_phat_sinh, Anh_huong_TD, Link_ho_so, TT_Phe_duyet, Nguoi_duyet, Ngay_duyet, Noi_dung_dieu_chinh, Ghi_chu FROM phat_sinh", conn)
     conn.close()
-    st.dataframe(df_ps, hide_index=True, use_container_width=True)
+    
+    ps_column_config = {
+        "id": None,
+        "Ma_PS": st.column_config.TextColumn("Mã PS", width=110),
+        "Ma_BSC": st.column_config.TextColumn("Mã BSC", width=120),
+        "Hang_muc": st.column_config.TextColumn("Hạng mục", width=200),
+        "Ngay_PS": st.column_config.DateColumn("Ngày PS", format="YYYY-MM-DD", width=110),
+        "Loai": st.column_config.TextColumn("Phân loại", width=160),
+        "Mo_ta": st.column_config.TextColumn("Mô tả chi tiết", width=250),
+        "Nguyen_nhan": st.column_config.TextColumn("Nguyên nhân", width=200),
+        "De_xuat_xu_ly": st.column_config.TextColumn("Đề xuất xử lý", width=200),
+        "Gia_tri_phat_sinh": st.column_config.NumberColumn("Giá trị PS (tỷ)", format="%.2f tỷ", width=120),
+        "Anh_huong_TD": st.column_config.NumberColumn("Ảnh hưởng TD (ngày)", format="%d ngày", width=140),
+        "Link_ho_so": st.column_config.LinkColumn("Link hồ sơ", width=150, display_text="Xem hồ sơ phát sinh 📄"),
+        "TT_Phe_duyet": st.column_config.TextColumn("TT Phê duyệt", width=125),
+        "Nguoi_duyet": st.column_config.TextColumn("Người duyệt", width=120),
+        "Ngay_duyet": st.column_config.DateColumn("Ngày duyệt", format="YYYY-MM-DD", width=110),
+        "Noi_dung_dieu_chinh": st.column_config.TextColumn("Nội dung điều chỉnh", width=200),
+        "Ghi_chu": st.column_config.TextColumn("Ghi chú", width=150)
+    }
+    
+    styled_df = df_ps.style.apply(style_subtable_rows, axis=None)
+    st.dataframe(
+        styled_df,
+        column_config=ps_column_config,
+        hide_index=True,
+        use_container_width=True,
+        key="grid_phat_sinh"
+    )
 
 # --- 6. SUB-TABLE 04: CUNG ỨNG ĐẶC THÙ ---
 elif choice == "🚚 04. Cung ứng Đặc thù":
@@ -782,9 +1014,38 @@ elif choice == "🚚 04. Cung ứng Đặc thù":
                     st.rerun()
 
     conn = database.get_connection()
-    df_cu = pd.read_sql_query("SELECT * FROM cu_dac_thu", conn)
+    df_cu = pd.read_sql_query("SELECT id, Ma_YC, Ma_BSC, Hang_muc, Ngay_YC, Loai_YC, Vat_tu_thiet_bi, Noi_dung_yeu_cau, KL, DVT, Gia_tri_phat_sinh, Trong_Ngoai_HDCU, Link_ho_so, TT_Phe_duyet, Nguoi_duyet, Ngay_can, TT_cung_ung, Ghi_chu FROM cu_dac_thu", conn)
     conn.close()
-    st.dataframe(df_cu, hide_index=True, use_container_width=True)
+    
+    cu_column_config = {
+        "id": None,
+        "Ma_YC": st.column_config.TextColumn("Mã YC", width=110),
+        "Ma_BSC": st.column_config.TextColumn("Mã BSC", width=120),
+        "Hang_muc": st.column_config.TextColumn("Hạng mục", width=200),
+        "Ngay_YC": st.column_config.DateColumn("Ngày yêu cầu", format="YYYY-MM-DD", width=120),
+        "Loai_YC": st.column_config.TextColumn("Tính chất", width=110),
+        "Vat_tu_thiet_bi": st.column_config.TextColumn("Vật tư / Thiết bị", width=200),
+        "Noi_dung_yeu_cau": st.column_config.TextColumn("Mô tả / Lý do", width=220),
+        "KL": st.column_config.NumberColumn("Khối lượng", format="%.2f", width=110),
+        "DVT": st.column_config.TextColumn("ĐVT", width=80),
+        "Gia_tri_phat_sinh": st.column_config.NumberColumn("Giá trị (tỷ)", format="%.2f tỷ", width=110),
+        "Trong_Ngoai_HDCU": st.column_config.TextColumn("Phạm vi HĐ", width=130),
+        "Link_ho_so": st.column_config.LinkColumn("Link hồ sơ", width=140, display_text="Xem tài liệu kỹ thuật 📄"),
+        "TT_Phe_duyet": st.column_config.TextColumn("TT Phê duyệt", width=120),
+        "Nguoi_duyet": st.column_config.TextColumn("Người duyệt", width=120),
+        "Ngay_can": st.column_config.DateColumn("Ngày cần vật tư", format="YYYY-MM-DD", width=120),
+        "TT_cung_ung": st.column_config.TextColumn("TT Cung ứng", width=120),
+        "Ghi_chu": st.column_config.TextColumn("Ghi chú", width=150)
+    }
+    
+    styled_df = df_cu.style.apply(style_subtable_rows, axis=None)
+    st.dataframe(
+        styled_df,
+        column_config=cu_column_config,
+        hide_index=True,
+        use_container_width=True,
+        key="grid_cu_dac_thu"
+    )
 
 # --- 7. SUB-TABLE 05: BÙ TIỀN ĐỘ ---
 elif choice == "🚀 05. Bù Tiến độ":
@@ -832,9 +1093,35 @@ elif choice == "🚀 05. Bù Tiến độ":
                     st.rerun()
 
     conn = database.get_connection()
-    df_bu = pd.read_sql_query("SELECT * FROM bu_tien_do", conn)
+    df_bu = pd.read_sql_query("SELECT id, Ma_BSC, Hang_muc, Ngay_phat_hien, Muc_cham_ngay, Nguyen_nhan, Phuong_an, Chi_tiet_giai_phap, Moc_cam_ket_HT, Link_phuong_an, TT_duyet, Nguoi_duyet, KQ_thuc_hien_bu, TT_Trien_khai, Ghi_chu FROM bu_tien_do", conn)
     conn.close()
-    st.dataframe(df_bu, hide_index=True, use_container_width=True)
+    
+    bu_column_config = {
+        "id": None,
+        "Ma_BSC": st.column_config.TextColumn("Mã BSC", width=120),
+        "Hang_muc": st.column_config.TextColumn("Hạng mục", width=200),
+        "Ngay_phat_hien": st.column_config.DateColumn("Ngày phát hiện chậm", format="YYYY-MM-DD", width=150),
+        "Muc_cham_ngay": st.column_config.NumberColumn("Số ngày trễ", format="%d ngày trễ", width=120),
+        "Nguyen_nhan": st.column_config.TextColumn("Nguyên nhân chậm trễ", width=220),
+        "Phuong_an": st.column_config.TextColumn("Giải pháp bù", width=220),
+        "Chi_tiet_giai_phap": st.column_config.TextColumn("Kế hoạch chi tiết", width=250),
+        "Moc_cam_ket_HT": st.column_config.DateColumn("Hạn chót cam kết", format="YYYY-MM-DD", width=140),
+        "Link_phuong_an": st.column_config.LinkColumn("Link phương án", width=140, display_text="Xem phương án bù 📄"),
+        "TT_duyet": st.column_config.TextColumn("TT Duyệt", width=110),
+        "Nguoi_duyet": st.column_config.TextColumn("Người duyệt", width=120),
+        "KQ_thuc_hien_bu": st.column_config.TextColumn("Đánh giá kết quả bù", width=200),
+        "TT_Trien_khai": st.column_config.TextColumn("TT Triển khai", width=130),
+        "Ghi_chu": st.column_config.TextColumn("Ghi chú", width=150)
+    }
+    
+    styled_df = df_bu.style.apply(style_subtable_rows, axis=None)
+    st.dataframe(
+        styled_df,
+        column_config=bu_column_config,
+        hide_index=True,
+        use_container_width=True,
+        key="grid_bu_tien_do"
+    )
 
 # --- 8. AI ASSISTANT VIEW ---
 elif choice == "🤖 Trợ lý AI Thông minh":
