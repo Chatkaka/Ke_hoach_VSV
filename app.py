@@ -246,6 +246,280 @@ def style_subtable_rows(df):
     return styles
 
 
+def render_dataframe_html(df, column_config, key_suffix=""):
+    html = []
+    
+    # Custom CSS for HTML tables
+    css = """
+    <style>
+        .table-wrapper {
+            width: 100%;
+            overflow-x: hidden; /* Avoid horizontal scrolling */
+            border-radius: 12px;
+            box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -2px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+            background: white;
+        }
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.825rem;
+            color: #1e293b;
+            table-layout: fixed;
+        }
+        .styled-table th {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            color: white !important;
+            font-weight: 700;
+            text-align: left;
+            padding: 12px 14px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 3px solid #1d4ed8;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            word-wrap: break-word;
+            white-space: normal;
+            line-height: 1.3;
+        }
+        .styled-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+            word-wrap: break-word;
+            white-space: normal;
+            line-height: 1.4;
+        }
+        .styled-table tr:hover {
+            background-color: #f1f5f9;
+        }
+        .styled-table tr.wbs-row {
+            background-color: #f8fafc;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        .styled-table tr.wbs-row td {
+            font-style: italic;
+        }
+        /* Custom badges */
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+            text-align: center;
+        }
+        .badge-green { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .badge-red { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .badge-yellow { background-color: #fefce8; color: #a16207; border: 1px solid #fef08a; }
+        .badge-orange { background-color: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
+        
+        /* Link button style */
+        .btn-link {
+            display: inline-flex;
+            align-items: center;
+            background-color: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-link:hover {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+            border-color: #93c5fd;
+        }
+    </style>
+    """
+    html.append(css)
+    html.append('<div class="table-wrapper">')
+    html.append('<table class="styled-table">')
+    
+    cols_to_render = []
+    for col in df.columns:
+        if col in column_config and column_config[col] is None:
+            continue
+        cols_to_render.append(col)
+        
+    total_cols = len(cols_to_render)
+    default_pct = int(100 / max(total_cols, 1))
+    
+    # Custom widths for sub-table labels to prevent wrapping overflow
+    col_pcts = {
+        "Mã BSC": "10%",
+        "Hạng mục": "18%",
+        "Loại hồ sơ": "10%",
+        "Tên hồ sơ / văn bản": "22%",
+        "Link lưu trữ": "12%",
+        "Ngày hoàn thành": "10%",
+        "Người lập": "9%",
+        "Người duyệt": "9%",
+        "Trạng thái duyệt": "10%",
+        # Sổ 02
+        "Tháng": "7%",
+        "Loại tài liệu": "12%",
+        "Nội dung chính": "20%",
+        "Đạt YCKT CĐT?": "10%",
+        "Link tài liệu": "10%",
+        "TT Lập": "9%",
+        "TT Duyệt": "9%",
+        "Ngày duyệt": "10%",
+        # Sổ 03
+        "Mã PS": "8%",
+        "Ngày PS": "8%",
+        "Phân loại": "12%",
+        "Mô tả chi tiết": "18%",
+        "Nguyên nhân": "13%",
+        "Đề xuất xử lý": "13%",
+        "Giá trị PS (tỷ)": "9%",
+        "Ảnh hưởng TD (ngày)": "9%",
+        "Link hồ sơ": "10%",
+        "TT Phê duyệt": "10%",
+        "Nội dung điều chỉnh": "15%",
+        "Ghi chú": "10%",
+        # Sổ 04
+        "Mã YC": "8%",
+        "Ngày yêu cầu": "9%",
+        "Tính chất": "8%",
+        "Vật tư / Thiết bị": "18%",
+        "Mô tả / Lý do": "18%",
+        "Khối lượng": "8%",
+        "ĐVT": "5%",
+        "Giá trị (tỷ)": "8%",
+        "Phạm vi HĐ": "10%",
+        "Link tài liệu kỹ thuật": "10%",
+        "TT Cung ứng": "10%",
+        "Ngày cần vật tư": "10%",
+        # Sổ 05
+        "Ngày phát hiện chậm": "11%",
+        "Số ngày trễ": "9%",
+        "Nguyên nhân chậm trễ": "18%",
+        "Giải pháp bù": "18%",
+        "Kế hoạch chi tiết": "18%",
+        "Hạn chót cam kết": "10%",
+        "Link phương án": "10%",
+        "Đánh giá kết quả bù": "15%",
+        "TT Triển khai": "10%"
+    }
+    
+    html.append('<colgroup>')
+    for col in cols_to_render:
+        cfg = column_config.get(col)
+        label = col
+        width_str = f"{default_pct}%"
+        
+        if cfg is not None:
+            if hasattr(cfg, 'label') and cfg.label:
+                label = cfg.label
+            elif hasattr(cfg, 'title') and cfg.title:
+                label = cfg.title
+            
+            if label in col_pcts:
+                width_str = col_pcts[label]
+            elif hasattr(cfg, 'width') and cfg.width:
+                width_str = f"{max(int(cfg.width / 12), 4)}%"
+                
+        html.append(f'<col style="width: {width_str};">')
+    html.append('</colgroup>')
+    
+    html.append('<thead><tr>')
+    for col in cols_to_render:
+        cfg = column_config.get(col)
+        label = col
+        if cfg is not None:
+            if hasattr(cfg, 'label') and cfg.label:
+                label = cfg.label
+            elif hasattr(cfg, 'title') and cfg.title:
+                label = cfg.title
+        html.append(f'<th>{label}</th>')
+    html.append('</tr></thead>')
+    
+    html.append('<tbody>')
+    for idx, row in df.iterrows():
+        is_wbs = False
+        if "Ma_BSC" in row and (row["Ma_BSC"] is None or row["Ma_BSC"] == "" or row["Ma_BSC"] == "--- WBS ---" or "WBS" in str(row["Ma_BSC"])):
+            is_wbs = True
+        
+        row_class = 'class="wbs-row"' if is_wbs else ""
+        html.append(f'<tr {row_class}>')
+        
+        for col in cols_to_render:
+            val = row[col]
+            val_str = str(val).strip() if val is not None else ""
+            
+            cell_val = ""
+            cfg = column_config.get(col)
+            label = col
+            is_link = False
+            if cfg is not None:
+                if hasattr(cfg, 'label') and cfg.label:
+                    label = cfg.label
+                elif hasattr(cfg, 'title') and cfg.title:
+                    label = cfg.title
+                if type(cfg).__name__ == "LinkColumn":
+                    is_link = True
+            
+            if is_link:
+                if val_str and val_str.lower() != 'none' and val_str.lower() != 'nan':
+                    disp_text = "Xem tài liệu 📄"
+                    if cfg and hasattr(cfg, 'display_text') and cfg.display_text:
+                        disp_text = cfg.display_text
+                    cell_val = f'<a href="{val_str}" target="_blank" class="btn-link">{disp_text}</a>'
+                else:
+                    cell_val = ""
+            elif col in ("TT_duyet", "TT_lap", "Dat_YCKT_CDT", "TT_Phe_duyet", "TT_Trien_khai", "Trong_Ngoai_HDCU", "TT_cung_ung"):
+                if val_str in ("Đã duyệt", "Đã lập", "Có", "Trong HĐCU", "Đã hoàn thành", "Đã ký", "Đã CU"):
+                    cell_val = f'<span class="status-badge badge-green">{val_str}</span>'
+                elif val_str in ("Chưa lập", "Từ chối", "Chưa", "Ngoài HĐCU", "Từ chối duyệt", "Đóng"):
+                    cell_val = f'<span class="status-badge badge-red">{val_str}</span>'
+                elif any(word in val_str for word in ("Đang", "Chờ", "Đang sửa đổi", "Đang thực hiện", "Nháp")):
+                    cell_val = f'<span class="status-badge badge-yellow">{val_str}</span>'
+                else:
+                    cell_val = val_str
+            elif col in ("Gia_tri_phat_sinh", "Gia_tri_dinh_muc", "KL"):
+                try:
+                    num_val = float(val) if val not in ("", None) else 0.0
+                    if num_val > 0:
+                        if "giá trị" in label.lower() or "tỷ" in label.lower() or col == "Gia_tri_phat_sinh":
+                            cell_val = f"<b>{num_val:,.2f} tỷ</b>"
+                        else:
+                            cell_val = f"{num_val:,.2f}"
+                    else:
+                        cell_val = ""
+                except ValueError:
+                    cell_val = val_str
+            elif col in ("Muc_cham_ngay", "Anh_huong_TD"):
+                try:
+                    num_val = int(float(val)) if val not in ("", None) else 0
+                    if num_val > 0:
+                        cell_val = f'<span style="color: #b91c1c; font-weight: bold;">{num_val} ngày trễ</span>'
+                    else:
+                        cell_val = ""
+                except ValueError:
+                    cell_val = val_str
+            else:
+                cell_val = val_str
+                
+            html.append(f'<td>{cell_val}</td>')
+        html.append('</tr>')
+        
+    html.append('</tbody>')
+    html.append('</table>')
+    html.append('</div>')
+    
+    st.markdown("".join(html), unsafe_allow_html=True)
+
+
+
 # --- TOP BANNER (RENDER ON EVERY PAGE) ---
 st.markdown("""
 <div class="top-banner">
@@ -502,47 +776,214 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     projects_sorted = sorted(projects, key=lambda x: (x['Nhom_CT'] or "", x['TT'] or ""))
 
     def render_project_grid(proj_list, cols_to_show, key_suffix=""):
-        display_list = []
+        col_widths_map = {
+            "a": ["4%", "10%", "8%", "20%", "8%", "9%", "9%", "8%", "9%", "5%", "5%", "5%"],
+            "b": ["4%", "10%", "9%", "25%", "10%", "8%", "10%", "8%", "8%", "8%"],
+            "c": ["4%", "10%", "9%", "25%", "8%", "8%", "8%", "10%", "10%", "8%"],
+            "d": ["4%", "11%", "9%", "26%", "8%", "10%", "10%", "12%", "10%"],
+            "g": ["4%", "10%", "8%", "20%", "9%", "9%", "18%", "5%", "5%", "5%", "7%"],
+            "all": ["4%", "10%", "8%", "8%", "20%", "8%", "8%", "8%", "8%", "9%", "9%"]
+        }
+        
+        widths = col_widths_map.get(key_suffix, [f"{int(100/len(cols_to_show))}%"] * len(cols_to_show))
+        html = []
+        
+        css = """
+        <style>
+            .table-container {
+                width: 100%;
+                overflow-x: hidden; /* Avoid horizontal scrolling */
+                border-radius: 12px;
+                box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -2px rgba(0, 0, 0, 0.05);
+                border: 1px solid #e2e8f0;
+                margin-bottom: 2rem;
+                background: white;
+            }
+            .master-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-family: 'Inter', sans-serif;
+                font-size: 0.825rem;
+                color: #1e293b;
+                table-layout: fixed;
+            }
+            .master-table th {
+                background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+                color: white !important;
+                font-weight: 700;
+                text-align: left;
+                padding: 12px 14px;
+                position: sticky;
+                top: 0;
+                z-index: 10;
+                border-bottom: 3px solid #1d4ed8;
+                font-size: 0.8rem;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                word-wrap: break-word;
+                white-space: normal;
+                line-height: 1.3;
+            }
+            .master-table td {
+                padding: 12px 14px;
+                border-bottom: 1px solid #e2e8f0;
+                vertical-align: middle;
+                word-wrap: break-word;
+                white-space: normal;
+                line-height: 1.4;
+            }
+            .master-table tr:hover {
+                background-color: #f1f5f9;
+            }
+            .master-table tr.wbs-row-style {
+                background-color: #f8fafc;
+                font-weight: 700;
+                color: #1e293b;
+            }
+            .master-table tr.wbs-row-style td {
+                font-style: italic;
+                border-bottom: 2px solid #e2e8f0;
+            }
+            .master-badge {
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                display: inline-block;
+                text-align: center;
+                line-height: 1;
+            }
+            .master-badge-green { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+            .master-badge-red { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+            .master-badge-yellow { background-color: #fefce8; color: #a16207; border: 1px solid #fef08a; }
+            .master-badge-orange { background-color: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
+            
+            /* Custom progress bar */
+            .html-progress-container {
+                width: 100%;
+                background-color: #e2e8f0;
+                border-radius: 4px;
+                overflow: hidden;
+                height: 8px;
+                margin-top: 4px;
+            }
+            .html-progress-fill {
+                height: 100%;
+                border-radius: 4px;
+            }
+            .html-progress-text {
+                font-size: 0.75rem;
+                font-weight: 600;
+                color: #475569;
+            }
+        </style>
+        """
+        html.append(css)
+        html.append('<div class="table-container">')
+        html.append('<table class="master-table">')
+        
+        html.append('<colgroup>')
+        for idx, col_name in enumerate(cols_to_show.values()):
+            w = widths[idx] if idx < len(widths) else "auto"
+            html.append(f'<col style="width: {w};">')
+        html.append('</colgroup>')
+        
+        html.append('<thead><tr>')
+        for col_name in cols_to_show.values():
+            html.append(f'<th>{col_name}</th>')
+        html.append('</tr></thead>')
+        
+        html.append('<tbody>')
         for p in proj_list:
             is_wbs = not p['Ma_BSC']
-            row_dict = {}
+            tr_class = 'class="wbs-row-style"' if is_wbs else ""
+            html.append(f'<tr {tr_class}>')
+            
             for col_key, col_name in cols_to_show.items():
+                val = ""
+                
                 if col_key == "Ma_BSC" and not p['Ma_BSC']:
-                    row_dict[col_name] = "--- WBS ---"
+                    val = "--- WBS ---"
                 elif col_key == "Hang_muc_formatted":
-                    row_dict[col_name] = format_wbs_name(p['Hang_muc'], p['TT'])
+                    name_formatted = format_wbs_name(p['Hang_muc'], p['TT'])
+                    leading_spaces = len(name_formatted) - len(name_formatted.lstrip(' '))
+                    val = "&nbsp;" * leading_spaces + name_formatted.lstrip(' ')
                 elif col_key in ("DK1_HSKT", "DK2_HDCU", "DK3_KHTK"):
-                    row_dict[col_name] = "N/A" if is_wbs else ("✔" if p[col_key] else "✘")
+                    chk = "N/A" if is_wbs else ("✔" if p[col_key] else "✘")
+                    if chk == "✔":
+                        val = '<span style="color: #166534; font-weight: bold; font-size: 1rem;">✔</span>'
+                    elif chk == "✘":
+                        val = '<span style="color: #b91c1c; font-weight: bold; font-size: 1rem;">✘</span>'
+                    else:
+                        val = chk
                 elif col_key == "Dieu_kien_du":
-                    row_dict[col_name] = "---" if is_wbs else p[col_key]
+                    dk_val = "---" if is_wbs else p[col_key]
+                    if dk_val == "ĐỦ ĐIỀU KIỆN":
+                        val = '<span class="master-badge master-badge-green">ĐỦ ĐIỀU KIỆN</span>'
+                    elif dk_val == "CHƯA ĐỦ ĐK":
+                        val = '<span class="master-badge master-badge-red">CHƯA ĐỦ ĐK</span>'
+                    else:
+                        val = dk_val
                 elif col_key == "Co_Canh_bao":
                     if is_wbs:
-                        row_dict[col_name] = "---"
+                        val = "---"
                     else:
                         warning_val = p[col_key]
                         if warning_val == 'RED':
-                            row_dict[col_name] = "🔴 ĐỎ (Rủi ro)"
+                            val = '<span class="master-badge master-badge-red">🔴 ĐỎ (Rủi ro)</span>'
                         elif warning_val == 'ORANGE':
-                            row_dict[col_name] = "🟠 CAM (Theo dõi)"
+                            val = '<span class="master-badge master-badge-orange">🟠 CAM (Theo dõi)</span>'
                         elif warning_val == 'YELLOW':
-                            row_dict[col_name] = "🟡 VÀNG (Chậm nhẹ)"
+                            val = '<span class="master-badge master-badge-yellow">🟡 VÀNG (Chậm nhẹ)</span>'
                         else:
-                            row_dict[col_name] = "🟢 XANH (Bình thường)"
-                elif col_key in ("KH_Thang", "KQ_Thang", "Percent_HDCU_NS", "T1_KQ", "T2_KQ", "T3_KQ", "T4_KQ"):
-                    row_dict[col_name] = p[col_key] * 100 if p[col_key] is not None else None
+                            val = '<span class="master-badge master-badge-green">🟢 XANH (Bình thường)</span>'
+                elif col_key in ("KH_Thang", "KQ_Thang"):
+                    pct = p[col_key] * 100 if p[col_key] is not None else 0.0
+                    bar_color = "#22c55e" if col_key == "KQ_Thang" else "#3b82f6"
+                    val = f"""
+                    <span class="html-progress-text">{pct:.1f}%</span>
+                    <div class="html-progress-container">
+                        <div class="html-progress-fill" style="width: {min(pct, 100.0)}%; background-color: {bar_color};"></div>
+                    </div>
+                    """
+                elif col_key in ("T1_KQ", "T2_KQ", "T3_KQ", "T4_KQ", "Percent_HDCU_NS"):
+                    pct = p[col_key] * 100 if p[col_key] is not None else None
+                    if pct is not None:
+                        if col_key == "Percent_HDCU_NS" and pct > 100.0:
+                            val = f'<span style="color: #b91c1c; font-weight: bold;">{pct:.1f}%</span>'
+                        else:
+                            val = f'{pct:.1f}%'
+                    else:
+                        val = ""
+                elif col_key in ("Ngan_sach", "Gia_tri_HDCU", "Luy_ke_HDCU", "Luy_ke_Phat_sinh", "Total_Cost"):
+                    num = p[col_key]
+                    if num is not None and num != "":
+                        val = f"<b>{num:,.2f} tỷ</b>"
+                    else:
+                        val = ""
+                elif col_key in ("TT_HSTKTC", "TT_SPECS", "TT_BOQ", "TT_LCNT", "TT_Ky_HDCU", "TT_KHTK"):
+                    status_str = str(p[col_key]).strip() if p[col_key] else ""
+                    if status_str in ("Đã phát hành", "Đã cấp", "Đã bàn giao", "Đã ký", "Đã CU", "Đã duyệt", "Hoàn thiện"):
+                        val = f'<span class="master-badge master-badge-green">{status_str}</span>'
+                    elif status_str in ("Chưa có TK", "Chưa có", "Chưa bàn giao", "Chưa LCNT", "Chưa CU", "Chưa trình"):
+                        val = f'<span class="master-badge master-badge-red">{status_str}</span>'
+                    elif any(word in status_str for word in ("Đang", "Chờ", "Theo đợt", "Điều chỉnh")):
+                        val = f'<span class="master-badge master-badge-yellow">{status_str}</span>'
+                    else:
+                        val = status_str
                 else:
-                    row_dict[col_name] = p[col_key] if p[col_key] is not None else ""
-            display_list.append(row_dict)
+                    item = p[col_key]
+                    val = item if item is not None else ""
+                    
+                html.append(f'<td>{val}</td>')
+            html.append('</tr>')
             
-        df = pd.DataFrame(display_list)
-        styled_df = df.style.apply(style_master_rows, axis=None)
-        st.dataframe(
-            styled_df,
-            column_config=master_column_config,
-            hide_index=True,
-            use_container_width=True,
-            key=f"grid_{key_suffix}"
-        )
+        html.append('</tbody>')
+        html.append('</table>')
+        html.append('</div>')
+        
+        st.markdown("".join(html), unsafe_allow_html=True)
+
 
     # 1. TAB A: ĐẦU VÀO CĐT
     with t1:
@@ -809,14 +1250,7 @@ elif choice == "📂 01. Hồ sơ Tiền khởi công":
         "TT_duyet": st.column_config.TextColumn("Trạng thái duyệt", width=130)
     }
     
-    styled_df = df_hso.style.apply(style_subtable_rows, axis=None)
-    st.dataframe(
-        styled_df,
-        column_config=hso_column_config,
-        hide_index=True,
-        use_container_width=True,
-        key="grid_hso_tienkc"
-    )
+    render_dataframe_html(df_hso, hso_column_config, "hso_tienkc")
 
 # --- 4. SUB-TABLE 02: KẾ HOẠCH THÁNG/TUẦN ---
 elif choice == "📅 02. Kế hoạch Tháng/Tuần":
@@ -882,14 +1316,7 @@ elif choice == "📅 02. Kế hoạch Tháng/Tuần":
         "Ngay_duyet": st.column_config.DateColumn("Ngày duyệt", format="YYYY-MM-DD", width=120)
     }
     
-    styled_df = df_kh.style.apply(style_subtable_rows, axis=None)
-    st.dataframe(
-        styled_df,
-        column_config=kh_column_config,
-        hide_index=True,
-        use_container_width=True,
-        key="grid_kh_thang_tuan"
-    )
+    render_dataframe_html(df_kh, kh_column_config, "kh_thang_tuan")
 
 # --- 5. SUB-TABLE 03: QUẢN LÝ PHÁT SINH ---
 elif choice == "⚠️ 03. Quản lý Phát sinh":
@@ -959,14 +1386,7 @@ elif choice == "⚠️ 03. Quản lý Phát sinh":
         "Ghi_chu": st.column_config.TextColumn("Ghi chú", width=150)
     }
     
-    styled_df = df_ps.style.apply(style_subtable_rows, axis=None)
-    st.dataframe(
-        styled_df,
-        column_config=ps_column_config,
-        hide_index=True,
-        use_container_width=True,
-        key="grid_phat_sinh"
-    )
+    render_dataframe_html(df_ps, ps_column_config, "phat_sinh")
 
 # --- 6. SUB-TABLE 04: CUNG ỨNG ĐẶC THÙ ---
 elif choice == "🚚 04. Cung ứng Đặc thù":
@@ -1038,14 +1458,7 @@ elif choice == "🚚 04. Cung ứng Đặc thù":
         "Ghi_chu": st.column_config.TextColumn("Ghi chú", width=150)
     }
     
-    styled_df = df_cu.style.apply(style_subtable_rows, axis=None)
-    st.dataframe(
-        styled_df,
-        column_config=cu_column_config,
-        hide_index=True,
-        use_container_width=True,
-        key="grid_cu_dac_thu"
-    )
+    render_dataframe_html(df_cu, cu_column_config, "cu_dac_thu")
 
 # --- 7. SUB-TABLE 05: BÙ TIỀN ĐỘ ---
 elif choice == "🚀 05. Bù Tiến độ":
@@ -1114,14 +1527,7 @@ elif choice == "🚀 05. Bù Tiến độ":
         "Ghi_chu": st.column_config.TextColumn("Ghi chú", width=150)
     }
     
-    styled_df = df_bu.style.apply(style_subtable_rows, axis=None)
-    st.dataframe(
-        styled_df,
-        column_config=bu_column_config,
-        hide_index=True,
-        use_container_width=True,
-        key="grid_bu_tien_do"
-    )
+    render_dataframe_html(df_bu, bu_column_config, "bu_tien_do")
 
 # --- 8. AI ASSISTANT VIEW ---
 elif choice == "🤖 Trợ lý AI Thông minh":
