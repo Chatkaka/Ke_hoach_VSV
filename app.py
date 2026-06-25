@@ -249,11 +249,12 @@ def style_subtable_rows(df):
 def render_dataframe_html(df, column_config, key_suffix=""):
     html = []
     
-    # Custom CSS for HTML tables
     css = """
     <style>
         .table-wrapper {
             width: 100%;
+            max-height: 500px; /* Constrain height to force vertical scrollbar inside container */
+            overflow-y: auto; /* Vertically scrollable */
             overflow-x: hidden; /* Avoid horizontal scrolling */
             border-radius: 12px;
             box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -2px rgba(0, 0, 0, 0.05);
@@ -265,42 +266,52 @@ def render_dataframe_html(df, column_config, key_suffix=""):
             width: 100%;
             border-collapse: collapse;
             font-family: 'Inter', sans-serif;
-            font-size: 0.825rem;
-            color: #1e293b;
+            font-size: 0.8rem;
+            color: #334155;
             table-layout: fixed;
         }
         .styled-table th {
-            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
-            color: white !important;
-            font-weight: 700;
+            background-color: #f8fafc !important; /* Premium light slate grey background */
+            color: #475569 !important; /* Soft slate text */
+            font-weight: 600;
             text-align: left;
             padding: 12px 14px;
             position: sticky;
             top: 0;
             z-index: 10;
-            border-bottom: 3px solid #1d4ed8;
+            border-bottom: 2px solid #e2e8f0;
             font-size: 0.8rem;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.03em;
             word-wrap: break-word;
             white-space: normal;
             line-height: 1.3;
         }
+        /* Sticky header border bottom fix when scrolling */
+        .styled-table th::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            border-bottom: 2px solid #e2e8f0;
+        }
         .styled-table td {
-            padding: 12px 14px;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 10px 14px;
+            border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
             word-wrap: break-word;
             white-space: normal;
             line-height: 1.4;
+            color: #334155;
         }
         .styled-table tr:hover {
-            background-color: #f1f5f9;
+            background-color: #f8fafc !important;
         }
         .styled-table tr.wbs-row {
-            background-color: #f8fafc;
+            background-color: #f8fafc !important;
             font-weight: bold;
-            color: #1e293b;
+            color: #475569;
         }
         .styled-table tr.wbs-row td {
             font-style: italic;
@@ -309,10 +320,11 @@ def render_dataframe_html(df, column_config, key_suffix=""):
         .status-badge {
             padding: 4px 8px;
             border-radius: 6px;
-            font-size: 0.75rem;
+            font-size: 0.725rem;
             font-weight: 600;
             display: inline-block;
             text-align: center;
+            line-height: 1.2;
         }
         .badge-green { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
         .badge-red { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
@@ -323,20 +335,20 @@ def render_dataframe_html(df, column_config, key_suffix=""):
         .btn-link {
             display: inline-flex;
             align-items: center;
-            background-color: #eff6ff;
-            color: #2563eb;
-            border: 1px solid #bfdbfe;
-            padding: 4px 8px;
+            background-color: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+            padding: 3px 6px;
             border-radius: 4px;
             text-decoration: none;
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.725rem;
+            font-weight: 500;
             transition: all 0.2s;
         }
         .btn-link:hover {
-            background-color: #dbeafe;
-            color: #1d4ed8;
-            border-color: #93c5fd;
+            background-color: #dcfce7;
+            color: #14532d;
+            border-color: #86efac;
         }
     </style>
     """
@@ -792,6 +804,8 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         <style>
             .table-container {
                 width: 100%;
+                max-height: 550px; /* Constrain height to force vertical scrollbar inside container */
+                overflow-y: auto; /* Vertically scrollable */
                 overflow-x: hidden; /* Avoid horizontal scrolling */
                 border-radius: 12px;
                 box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -2px rgba(0, 0, 0, 0.05);
@@ -803,55 +817,65 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 width: 100%;
                 border-collapse: collapse;
                 font-family: 'Inter', sans-serif;
-                font-size: 0.825rem;
-                color: #1e293b;
+                font-size: 0.8rem;
+                color: #334155;
                 table-layout: fixed;
             }
             .master-table th {
-                background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
-                color: white !important;
-                font-weight: 700;
+                background-color: #f8fafc !important; /* Premium light slate grey background */
+                color: #475569 !important; /* Soft slate text */
+                font-weight: 600;
                 text-align: left;
                 padding: 12px 14px;
                 position: sticky;
                 top: 0;
                 z-index: 10;
-                border-bottom: 3px solid #1d4ed8;
+                border-bottom: 2px solid #e2e8f0;
                 font-size: 0.8rem;
                 text-transform: uppercase;
-                letter-spacing: 0.04em;
+                letter-spacing: 0.03em;
                 word-wrap: break-word;
                 white-space: normal;
                 line-height: 1.3;
             }
+            /* Sticky header border bottom fix when scrolling */
+            .master-table th::after {
+                content: '';
+                position: absolute;
+                left: 0;
+                bottom: 0;
+                width: 100%;
+                border-bottom: 2px solid #e2e8f0;
+            }
             .master-table td {
-                padding: 12px 14px;
-                border-bottom: 1px solid #e2e8f0;
+                padding: 10px 14px;
+                border-bottom: 1px solid #f1f5f9;
                 vertical-align: middle;
                 word-wrap: break-word;
                 white-space: normal;
                 line-height: 1.4;
+                color: #334155;
             }
             .master-table tr:hover {
-                background-color: #f1f5f9;
+                background-color: #f8fafc !important;
             }
             .master-table tr.wbs-row-style {
-                background-color: #f8fafc;
-                font-weight: 700;
-                color: #1e293b;
+                background-color: #f8fafc !important;
+                font-weight: bold;
+                color: #475569;
             }
             .master-table tr.wbs-row-style td {
                 font-style: italic;
-                border-bottom: 2px solid #e2e8f0;
+                border-bottom: 1px solid #e2e8f0;
             }
             .master-badge {
                 padding: 4px 8px;
                 border-radius: 6px;
-                font-size: 0.75rem;
+                font-size: 0.725rem;
                 font-weight: 600;
                 display: inline-block;
                 text-align: center;
-                line-height: 1;
+                line-height: 1.2;
             }
             .master-badge-green { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
             .master-badge-red { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
@@ -861,20 +885,21 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
             /* Custom progress bar */
             .html-progress-container {
                 width: 100%;
-                background-color: #e2e8f0;
+                background-color: #f1f5f9;
                 border-radius: 4px;
                 overflow: hidden;
-                height: 8px;
+                height: 6px;
                 margin-top: 4px;
+                border: 1px solid #e2e8f0;
             }
             .html-progress-fill {
                 height: 100%;
                 border-radius: 4px;
             }
             .html-progress-text {
-                font-size: 0.75rem;
+                font-size: 0.725rem;
                 font-weight: 600;
-                color: #475569;
+                color: #64748b;
             }
         </style>
         """
