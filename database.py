@@ -310,6 +310,11 @@ def seed_from_excel(conn, excel_file=None):
 
         tt = clean_str(row[0])
         ma_bsc = clean_str(row[1])
+        
+        # Skip WBS grouping rows (rows without valid Ma_BSC)
+        if not ma_bsc or ma_bsc.lower() in ('none', 'nan', 'wbs', '--- wbs ---'):
+            continue
+
         goi_thau = clean_str(row[2])
         nhom_ct = clean_str(row[3])
         hang_muc = clean_str(row[4])
