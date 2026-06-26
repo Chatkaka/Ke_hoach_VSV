@@ -43,22 +43,41 @@ def get_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db(force_reseed=False):
-    db_exists = os.path.exists(DB_PATH)
-    if db_exists and not force_reseed:
-        # Check if database is already seeded
-        try:
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM master_bang_tonghop")
-            count = cursor.fetchone()[0]
-            conn.close()
-            if count > 0:
-                print("Database already exists and has data. Seeding skipped.")
-                return
-        except Exception:
-            pass
+def check_and_add_columns(cursor):
+    # Dictionary of expected columns for tables to ensure self-healing schema migration
+    expected_schemas = {
+        "bu_tien_do": {
+            "Ghi_chu": "TEXT"
+        },
+        "nhan_su": {
+            "Ma_NV": "TEXT",
+            "Ho_Ten": "TEXT",
+            "Chuc_Vu": "TEXT",
+            "Vai_Tro": "TEXT",
+            "Email": "TEXT",
+            "Them_HD": "INTEGER",
+            "Sua": "INTEGER",
+            "Xoa_HD": "INTEGER",
+            "Sua_CDT_BD": "INTEGER",
+            "Cap_Nhat_CDT": "INTEGER"
+        }
+    }
+    for table_name, cols in expected_schemas.items():
+        # Check if table exists first
+        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
+        if not cursor.fetchone():
+            continue
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        existing_cols = [row[1] for row in cursor.fetchall()]
+        for col_name, col_type in cols.items():
+            if col_name not in existing_cols:
+                try:
+                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}")
+                    print(f"Auto-migration: Added column '{col_name}' to table '{table_name}'")
+                except Exception as e:
+                    print(f"Error migrating column {col_name} in {table_name}: {e}")
 
+def init_db(force_reseed=False):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -215,13 +234,55 @@ def init_db(force_reseed=False):
     )
     """)
 
+    # Create nhan_su Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS nhan_su (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        Ma_NV TEXT,
+        Ho_Ten TEXT,
+        Chuc_Vu TEXT,
+        Vai_Tro TEXT,
+        Email TEXT,
+        Them_HD INTEGER,
+        Sua INTEGER,
+        Xoa_HD INTEGER,
+        Sua_CDT_BD INTEGER,
+        Cap_Nhat_CDT INTEGER
+    )
+    """)
+
+    # Run Schema Self-Healing to add any missing columns in existing DB files
+    check_and_add_columns(cursor)
+
+    # Seed personnel if table is empty
+    cursor.execute("SELECT COUNT(*) FROM nhan_su")
+    count_ns = cursor.fetchone()[0]
+    if count_ns == 0:
+        personnel_data = [
+            ("80", "Cao Thị An", "Phó phòng", "Trống", "caothian11@gmail.com", 0, 1, 0, 0, 0),
+            ("58", "Hoàng Văn Vượng", "CV QLCL", "User2", "hoangvuongdhv@gmail.com", 0, 1, 0, 1, 1),
+            ("38", "Hồ Nghĩa Chất", "Admin", "admin2", "Hochat.tayan@gmail.com", 1, 1, 1, 1, 1),
+            ("467", "Lê Thị Ngọc Hoa", "NV hỗ trợ", "Trống", "lengochoa289@gmail.com", 0, 0, 0, 0, 0),
+            ("364", "Lê Xuân Văn", "CV QLCL", "User2", "lexuanvankt@gmail.com", 0, 1, 0, 1, 1),
+            ("76", "Nguyễn Hoàng Kiên", "CV Vật tư", "Trống", "kienprotl4@gmail.com", 0, 0, 0, 0, 0),
+            ("312", "Nguyễn Thành Chung", "CV QLCL", "User2", "thanhchunglcc@gmail.com", 0, 1, 0, 1, 1)
+        ]
+        cursor.executemany("""
+            INSERT INTO nhan_su (Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, personnel_data)
+
     conn.commit()
 
-    if os.path.exists(EXCEL_PATH):
-        print("Seeding database from Excel file...")
-        seed_from_excel(conn)
-    else:
-        print("Excel file not found. Seeding skipped.")
+    # Only seed from Excel if master table is empty or forced reseed
+    cursor.execute("SELECT COUNT(*) FROM master_bang_tonghop")
+    count_master = cursor.fetchone()[0]
+    if force_reseed or count_master == 0:
+        if os.path.exists(EXCEL_PATH):
+            print("Seeding database from Excel file...")
+            seed_from_excel(conn)
+        else:
+            print("Excel file not found. Seeding skipped.")
 
     conn.close()
 
