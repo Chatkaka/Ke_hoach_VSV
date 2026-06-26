@@ -267,6 +267,47 @@ def load_ma_bsc_options():
     conn.close()
     return [{"id": r[0], "Ma_BSC": r[1], "Hang_muc": r[2]} for r in rows]
 
+def load_goi_thau_options():
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT Goi_thau FROM master_bang_tonghop WHERE Goi_thau IS NOT NULL AND Goi_thau != ''")
+    existing_gts = [r[0] for r in cursor.fetchall()]
+    conn.close()
+    default_gts = [f"PL{i:02d}" for i in range(1, 31)]
+    all_gts = sorted(list(set(existing_gts + default_gts)))
+    return all_gts
+
+def load_personnel_options():
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT Ho_Ten FROM nhan_su ORDER BY Ho_Ten ASC")
+    ns_names = [r[0] for r in cursor.fetchall()]
+    cursor.execute("SELECT DISTINCT Phu_trach FROM master_bang_tonghop WHERE Phu_trach IS NOT NULL AND Phu_trach != ''")
+    existing_pts = [r[0] for r in cursor.fetchall()]
+    conn.close()
+    all_pts = sorted(list(set(ns_names + existing_pts)))
+    return all_pts
+
+def load_contractor_options():
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT Nguoi_lap FROM kh_thang_tuan WHERE Nguoi_lap IS NOT NULL AND Nguoi_lap != ''")
+    existing_contrs = [r[0] for r in cursor.fetchall()]
+    conn.close()
+    default_contrs = ['HĐLCNT', 'Tổng thầu', 'Nhà thầu phụ', 'An Dương', 'HĐLCNT / Tổng thầu']
+    all_contrs = sorted(list(set(existing_contrs + default_contrs)))
+    return all_contrs
+
+def load_dvt_options():
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT DVT FROM cu_dac_thu WHERE DVT IS NOT NULL AND DVT != ''")
+    existing_dvts = [r[0] for r in cursor.fetchall()]
+    conn.close()
+    default_dvts = ['Bộ', 'Cái', 'Tấn', 'Mét', 'M2', 'M3', 'Lô', 'Kg', 'Chiếc']
+    all_dvts = sorted(list(set(existing_dvts + default_dvts)))
+    return all_dvts
+
 # --- Pandas Styling Helper Functions ---
 def style_master_rows(df):
     styles = pd.DataFrame('', index=df.index, columns=df.columns)
@@ -903,11 +944,25 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
             with c1:
                 new_tt = st.text_input("Mã TT (Ví dụ: 3, 2.1, 2.2.1)")
                 new_ma_bsc = st.text_input("Mã BSC *")
-                new_goi_thau = st.text_input("Gói thầu (PL)")
+                
+                # Searchable dropdown for Goi_thau
+                gts = load_goi_thau_options()
+                selected_gt = st.selectbox("Gói thầu (PL)", gts + ["- Khác (Nhập mới) -"], index=gts.index("PL10") if "PL10" in gts else 0)
+                if selected_gt == "- Khác (Nhập mới) -":
+                    new_goi_thau = st.text_input("Nhập tên Gói thầu mới *")
+                else:
+                    new_goi_thau = selected_gt
             with c2:
                 new_nhom_ct = st.selectbox("Nhóm công trình", ["Hạ tầng kỹ thuật", "Xây dựng dân dụng", "Công trình phục vụ KD"])
                 new_hang_muc = st.text_input("Tên Hạng mục / Công việc *")
-                new_phu_trach = st.text_input("Kỹ sư Phụ trách")
+                
+                # Searchable dropdown for Phu_trach
+                pts = load_personnel_options()
+                selected_pt = st.selectbox("Kỹ sư Phụ trách", pts + ["- Khác (Nhập mới) -"])
+                if selected_pt == "- Khác (Nhập mới) -":
+                    new_phu_trach = st.text_input("Nhập tên Kỹ sư Phụ trách mới *")
+                else:
+                    new_phu_trach = selected_pt
             with c3:
                 new_ngan_sach = st.number_input("Ngân sách phê duyệt (tỷ)", min_value=0.0, step=0.1)
                 new_ngay_bd = st.date_input("Ngày bắt đầu (Yêu cầu CĐT)", value=None)
@@ -1171,6 +1226,30 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 font-weight: 600;
                 color: #64748b;
             }
+            
+            /* Toggle Button */
+            .toggle-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                background-color: #f1f5f9;
+                color: #475569;
+                border: 1px solid #e2e8f0;
+                cursor: pointer;
+                font-weight: bold;
+                font-size: 0.85rem;
+                margin-right: 8px;
+                user-select: none;
+                transition: all 0.2s;
+                line-height: 1;
+            }
+            .toggle-btn:hover {
+                background-color: #e2e8f0;
+                color: #0f172a;
+            }
         </style>
         """
         html.append(css)
@@ -1191,8 +1270,17 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         html.append('<tbody>')
         for p in proj_list:
             is_wbs = p.get('is_parent', False)
-            tr_class = 'class="wbs-row-style"' if is_wbs else ""
-            html.append(f'<tr {tr_class}>')
+            pkg = p.get('Goi_thau') or ""
+            base_pkg = pkg.split('.')[0] if '.' in pkg else pkg
+            
+            if is_wbs:
+                tr_class = 'class="wbs-row-style"'
+                tr_attrs = ""
+            else:
+                tr_class = f'class="child-row-{base_pkg}-{key_suffix}"'
+                tr_attrs = f'data-parent="{base_pkg}"'
+                
+            html.append(f'<tr {tr_class} {tr_attrs}>')
             
             for col_key, col_name in cols_to_show.items():
                 val = ""
@@ -1200,9 +1288,12 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 if col_key == "Ma_BSC" and not p['Ma_BSC']:
                     val = ""
                 elif col_key == "Hang_muc_formatted":
-                    name_formatted = format_wbs_name(p['Hang_muc'], p['TT'])
-                    leading_spaces = len(name_formatted) - len(name_formatted.lstrip(' '))
-                    val = "&nbsp;" * leading_spaces + name_formatted.lstrip(' ')
+                    if is_wbs:
+                        val = f'<span id="btn-{p["TT"]}-{key_suffix}" class="toggle-btn" onclick="togglePackage(\'{p["TT"]}\', \'{key_suffix}\')">−</span>' + p['Hang_muc']
+                    else:
+                        name_formatted = format_wbs_name(p['Hang_muc'], p['TT'])
+                        leading_spaces = len(name_formatted) - len(name_formatted.lstrip(' '))
+                        val = "&nbsp;" * leading_spaces + name_formatted.lstrip(' ')
                 elif col_key in ("DK1_HSKT", "DK2_HDCU", "DK3_KHTK"):
                     chk = "N/A" if is_wbs else ("✔" if p[col_key] else "✘")
                     if chk == "✔":
@@ -1279,6 +1370,29 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         html.append('</tbody>')
         html.append('</table>')
         html.append('</div>')
+        
+        # Javascript client-side expand/collapse toggle
+        js = """
+        <script>
+        if (typeof togglePackage !== 'function') {
+            window.togglePackage = function(pkgCode, suffix) {
+                var rows = document.querySelectorAll('.child-row-' + pkgCode + '-' + suffix);
+                var btn = document.getElementById('btn-' + pkgCode + '-' + suffix);
+                if (!rows || rows.length === 0) return;
+                
+                var isHidden = rows[0].style.display === 'none';
+                for (var i = 0; i < rows.length; i++) {
+                    rows[i].style.display = isHidden ? '' : 'none';
+                }
+                
+                if (btn) {
+                    btn.innerHTML = isHidden ? '−' : '+';
+                }
+            };
+        }
+        </script>
+        """
+        html.append(js)
         
         st.markdown("".join(html), unsafe_allow_html=True)
 
@@ -1407,8 +1521,31 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 with col_e1:
                     e_tt = st.text_input("Mã TT", value=proj['TT'] or "", disabled=not can_edit_dau_vao)
                     e_ma_bsc = st.text_input("Mã BSC", value=proj['Ma_BSC'] or "", disabled=not can_edit_dau_vao)
-                    e_goi_thau = st.text_input("Gói thầu", value=proj['Goi_thau'] or "", disabled=not can_edit_dau_vao)
-                    e_phu_trach = st.text_input("Người phụ trách", value=proj['Phu_trach'] or "", disabled=not can_edit_dau_vao)
+                    # Searchable dropdown for Goi_thau
+                    gts = load_goi_thau_options()
+                    curr_gt = proj['Goi_thau'] or ""
+                    gts_options = gts + ["- Khác (Nhập mới) -"]
+                    if curr_gt not in gts:
+                        gts_options = [curr_gt] + gts_options
+                    
+                    selected_gt = st.selectbox("Gói thầu", gts_options, index=gts_options.index(curr_gt) if curr_gt in gts_options else 0, disabled=not can_edit_dau_vao)
+                    if selected_gt == "- Khác (Nhập mới) -":
+                        e_goi_thau = st.text_input("Nhập tên Gói thầu mới *")
+                    else:
+                        e_goi_thau = selected_gt
+
+                    # Searchable dropdown for Phu_trach
+                    pts = load_personnel_options()
+                    curr_pt = proj['Phu_trach'] or ""
+                    pts_options = pts + ["- Khác (Nhập mới) -"]
+                    if curr_pt not in pts:
+                        pts_options = [curr_pt] + pts_options
+                    
+                    selected_pt = st.selectbox("Người phụ trách", pts_options, index=pts_options.index(curr_pt) if curr_pt in pts_options else 0, disabled=not can_edit_dau_vao)
+                    if selected_pt == "- Khác (Nhập mới) -":
+                        e_phu_trach = st.text_input("Nhập tên Người phụ trách mới *")
+                    else:
+                        e_phu_trach = selected_pt
                 with col_e2:
                     e_ngay_bd = st.date_input("Ngày BĐ (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_BD_YC'], '%Y-%m-%d').date() if proj['Ngay_BD_YC'] else None, disabled=not can_edit_dau_vao)
                     e_ngay_kt = st.date_input("Ngày KT (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_KT_YC'], '%Y-%m-%d').date() if proj['Ngay_KT_YC'] else None, disabled=not can_edit_dau_vao)
@@ -1498,8 +1635,18 @@ elif choice == "📂 01. Hồ sơ Tiền khởi công":
                 h_link = st.text_input("Đường dẫn lưu trữ (LINK)")
             with c2:
                 h_ngay = st.date_input("Ngày ký / hoàn thành", value=datetime.date.today())
-                h_nguoi_lap = st.text_input("Kỹ sư lập")
-                h_nguoi_duyet = st.text_input("Kỹ sư duyệt")
+                pts = load_personnel_options()
+                sel_lap = st.selectbox("Kỹ sư lập", pts + ["- Khác (Nhập mới) -"])
+                if sel_lap == "- Khác (Nhập mới) -":
+                    h_nguoi_lap = st.text_input("Nhập tên Kỹ sư lập mới *")
+                else:
+                    h_nguoi_lap = sel_lap
+                
+                sel_duyet = st.selectbox("Kỹ sư duyệt", pts + ["- Khác (Nhập mới) -"])
+                if sel_duyet == "- Khác (Nhập mới) -":
+                    h_nguoi_duyet = st.text_input("Nhập tên Kỹ sư duyệt mới *")
+                else:
+                    h_nguoi_duyet = sel_duyet
                 h_tt = st.selectbox("Trạng thái duyệt", ['Chưa lập', 'Đang lập', 'Chờ duyệt', 'Đã duyệt', 'Từ chối'], index=3)
                 
             has_add_perm = check_permission('Them_HD')
@@ -1566,8 +1713,19 @@ elif choice == "📅 02. Kế hoạch Tháng/Tuần":
                 kh_link = st.text_input("LINK tài liệu đính kèm")
                 kh_tt_lap = st.selectbox("Trạng thái lập", ['Chưa lập', 'Đang lập', 'Đã lập'], index=2)
                 kh_tt_duyet = st.selectbox("Trạng thái duyệt", ['Chưa lập', 'Đang lập', 'Chờ duyệt', 'Đã duyệt', 'Từ chối'], index=3)
-                kh_nguoi_lap = st.text_input("Nhà thầu lập")
-                kh_nguoi_duyet = st.text_input("Cán bộ duyệt")
+                contrs = load_contractor_options()
+                sel_contr = st.selectbox("Nhà thầu lập", contrs + ["- Khác (Nhập mới) -"])
+                if sel_contr == "- Khác (Nhập mới) -":
+                    kh_nguoi_lap = st.text_input("Nhập tên Nhà thầu lập mới *")
+                else:
+                    kh_nguoi_lap = sel_contr
+                
+                pts = load_personnel_options()
+                sel_duyet = st.selectbox("Cán bộ duyệt", pts + ["- Khác (Nhập mới) -"])
+                if sel_duyet == "- Khác (Nhập mới) -":
+                    kh_nguoi_duyet = st.text_input("Nhập tên Cán bộ duyệt mới *")
+                else:
+                    kh_nguoi_duyet = sel_duyet
                 kh_ngay_duyet = st.date_input("Ngày phê duyệt", value=datetime.date.today())
                 
             has_add_perm = check_permission('Them_HD')
@@ -1639,7 +1797,12 @@ elif choice == "⚠️ 03. Quản lý Phát sinh":
                 ps_tg = st.number_input("Thời gian chậm tiến độ dự kiến (ngày)", min_value=0, step=1)
                 ps_link = st.text_input("LINK văn bản phát sinh")
                 ps_tt = st.selectbox("Trạng thái duyệt", ['Chờ duyệt', 'Đã duyệt', 'Nháp'])
-                ps_nguoi_duyet = st.text_input("Cán bộ thẩm định/duyệt")
+                pts = load_personnel_options()
+                sel_duyet = st.selectbox("Cán bộ thẩm định/duyệt", pts + ["- Khác (Nhập mới) -"])
+                if sel_duyet == "- Khác (Nhập mới) -":
+                    ps_nguoi_duyet = st.text_input("Nhập tên Cán bộ duyệt mới *")
+                else:
+                    ps_nguoi_duyet = sel_duyet
                 
             has_add_perm = check_permission('Them_HD')
             if not has_add_perm:
@@ -1710,12 +1873,24 @@ elif choice == "🚚 04. Cung ứng Đặc thù":
                 cu_lydo = st.text_area("Đặc tả yêu cầu & Lý do thay đổi")
             with c2:
                 cu_kl = st.number_input("Khối lượng yêu cầu", min_value=0.0, step=1.0)
-                cu_dvt = st.text_input("Đơn vị tính (ĐVT)")
+                dvts = load_dvt_options()
+                sel_dvt = st.selectbox("Đơn vị tính (ĐVT)", dvts + ["- Khác (Nhập mới) -"], index=dvts.index("Bộ") if "Bộ" in dvts else 0)
+                if sel_dvt == "- Khác (Nhập mới) -":
+                    cu_dvt = st.text_input("Nhập đơn vị tính mới *")
+                else:
+                    cu_dvt = sel_dvt
+                
                 cu_gia = st.number_input("Giá trị dự toán (tỷ)", min_value=0.0, step=0.01)
                 cu_trong_ngoai = st.selectbox("Trong/Ngoài phạm vi HĐCU", ['Trong HĐCU', 'Ngoài HĐCU'])
                 cu_link = st.text_input("LINK tài liệu kỹ thuật")
                 cu_tt = st.selectbox("Trạng thái duyệt đệ trình", ['Chờ duyệt', 'Đã duyệt'])
-                cu_nguoi_duyet = st.text_input("Người duyệt")
+                
+                pts = load_personnel_options()
+                sel_duyet = st.selectbox("Người duyệt", pts + ["- Khác (Nhập mới) -"])
+                if sel_duyet == "- Khác (Nhập mới) -":
+                    cu_nguoi_duyet = st.text_input("Nhập tên Người duyệt mới *")
+                else:
+                    cu_nguoi_duyet = sel_duyet
                 
             has_add_perm = check_permission('Them_HD')
             if not has_add_perm:
@@ -1789,7 +1964,12 @@ elif choice == "🚀 05. Bù Tiến độ":
                 bu_moc = st.date_input("Hạn cuối cam kết bù xong")
                 bu_link = st.text_input("LINK phương án được duyệt")
                 bu_tt_duyet = st.selectbox("Tình trạng duyệt phương án", ['Chờ duyệt', 'Đã duyệt'])
-                bu_nguoi = st.text_input("Cán bộ duyệt")
+                pts = load_personnel_options()
+                sel_duyet = st.selectbox("Cán bộ duyệt", pts + ["- Khác (Nhập mới) -"])
+                if sel_duyet == "- Khác (Nhập mới) -":
+                    bu_nguoi = st.text_input("Nhập tên Cán bộ duyệt mới *")
+                else:
+                    bu_nguoi = sel_duyet
                 bu_kq = st.text_input("Đánh giá kết quả thực hiện bù")
                 bu_tt_trienkhai = st.selectbox("Trạng thái triển khai", ['Đang thực hiện', 'Đã hoàn thành', 'Đóng'])
                 
