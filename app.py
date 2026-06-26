@@ -972,17 +972,19 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         seen_packages = set()
         for p_item in sorted_projs:
             pkg = p_item.get('Goi_thau') or "Khác"
+            # Get the parent package by taking the part before the dot, e.g. PL10.13 -> PL10
+            base_pkg = pkg.split('.')[0] if '.' in pkg else pkg
             nhom = p_item.get('Nhom_CT') or ""
-            if pkg not in seen_packages:
-                seen_packages.add(pkg)
+            if base_pkg not in seen_packages:
+                seen_packages.add(base_pkg)
                 # Create a parent row representing the package (PL)
                 parent_row = {
-                    "id": f"parent_{pkg}",
-                    "TT": pkg,
+                    "id": f"parent_{base_pkg}",
+                    "TT": base_pkg,
                     "Nhom_CT": nhom,
                     "Ma_BSC": None,
-                    "Goi_thau": pkg,
-                    "Hang_muc": f"Gói thầu {pkg}" + (f" ({nhom})" if nhom else ""),
+                    "Goi_thau": base_pkg,
+                    "Hang_muc": f"Gói thầu {base_pkg}" + (f" ({nhom})" if nhom else ""),
                     "Phu_trach": "",
                     "Ngay_BD_YC": "",
                     "Ngay_KT_YC": "",
