@@ -141,6 +141,58 @@ if api_key_input:
 else:
     st.session_state['gemini_api_key'] = api_key_env
 
+# --- Người dùng hiện tại & Phân quyền ---
+def load_users():
+    try:
+        conn = database.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT FROM nhan_su ORDER BY Ho_Ten ASC")
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        print(f"Error loading users: {e}")
+        return []
+
+users_list = load_users()
+default_user_idx = 0
+for idx, u in enumerate(users_list):
+    if u['Ho_Ten'] == "Hồ Nghĩa Chất":
+        default_user_idx = idx
+        break
+
+if users_list:
+    selected_user = st.sidebar.selectbox(
+        "👤 Người dùng hiện tại:",
+        options=users_list,
+        format_func=lambda x: f"{x['Ho_Ten']} ({x['Chuc_Vu']})",
+        index=default_user_idx
+    )
+    st.session_state['current_user'] = selected_user
+    
+    # Hiển thị thông tin phân quyền hiện tại trong sidebar
+    is_admin = selected_user.get('Chuc_Vu') == 'Admin' or selected_user.get('Vai_Tro') == 'admin2'
+    if is_admin:
+        st.sidebar.info("🔓 **Quyền hạn:** Toàn quyền (Admin)")
+    else:
+        perms = []
+        if selected_user.get('Them_HD') == 1: perms.append("Thêm")
+        if selected_user.get('Sua') == 1: perms.append("Sửa")
+        if selected_user.get('Xoa_HD') == 1: perms.append("Xóa")
+        perms_str = ", ".join(perms) if perms else "Chỉ xem"
+        st.sidebar.info(f"🔒 **Quyền hạn:** {perms_str}")
+else:
+    st.sidebar.warning("⚠️ Không thể tải danh sách nhân sự.")
+    st.session_state['current_user'] = None
+
+def check_permission(permission_type):
+    curr_user = st.session_state.get('current_user')
+    if not curr_user:
+        return False
+    if curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2':
+        return True
+    return curr_user.get(permission_type) == 1
+
 # Navigation
 menu_options = [
     "📊 Dashboard Điều hành",
@@ -782,6 +834,32 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     # Filter/Group by Nhóm CT
     nhom_ct_list = sorted(list(set([p['Nhom_CT'] for p in projects if p['Nhom_CT']])))
     
+    # Import Excel data expander
+    with st.expander("📥 Nhập dữ liệu từ file Excel (Import)"):
+        st.write("Tải lên file Excel để cập nhật toàn bộ cơ sở dữ liệu. Lưu ý: Thao tác này sẽ xóa sạch dữ liệu cũ và cập nhật lại theo file mới.")
+        has_import_perm = check_permission('Them_HD')
+        if not has_import_perm:
+            st.warning("⚠️ Bạn không có quyền nhập dữ liệu từ Excel.")
+        
+        uploaded_file = st.file_uploader(
+            "Chọn file Excel (.xlsx, .xls)", 
+            type=["xlsx", "xls"], 
+            disabled=not has_import_perm, 
+            key="excel_file_uploader"
+        )
+        
+        if uploaded_file is not None and has_import_perm:
+            if st.button("🚀 Xác nhận Import", key="btn_confirm_import", type="primary"):
+                with st.spinner("Đang xử lý dữ liệu file Excel..."):
+                    try:
+                        conn = database.get_connection()
+                        database.seed_from_excel(conn, uploaded_file)
+                        conn.close()
+                        st.success("🎉 Nhập dữ liệu từ file Excel thành công!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Lỗi khi import file Excel: {e}")
+
     # Add new item
     with st.expander("➕ Thêm mới Hạng mục công việc (WBS)"):
         with st.form("add_project_form"):
@@ -799,9 +877,14 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 new_ngay_bd = st.date_input("Ngày bắt đầu (Yêu cầu CĐT)", value=None)
                 new_ngay_kt = st.date_input("Ngày kết thúc (Yêu cầu CĐT)", value=None)
                 
-            submitted = st.form_submit_button("Lưu Hạng mục")
+            has_add_perm = check_permission('Them_HD')
+            if not has_add_perm:
+                st.warning("⚠️ Bạn không có quyền thêm mới hạng mục.")
+            submitted = st.form_submit_button("Lưu Hạng mục", disabled=not has_add_perm)
             if submitted:
-                if not new_hang_muc:
+                if not has_add_perm:
+                    st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+                elif not new_hang_muc:
                     st.error("Vui lòng nhập Tên Hạng mục / Công việc.")
                 else:
                     conn = database.get_connection()
@@ -1215,26 +1298,41 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     # Unified Action layout below the tabs (super clean and non-repeating)
     st.write("---")
     st.write("⚙️ *Hành động nhanh cho Hạng mục công việc:*")
+    
+    has_edit_perm = check_permission('Sua')
+    has_delete_perm = check_permission('Xoa_HD')
+    if not has_edit_perm or not has_delete_perm:
+        missing = []
+        if not has_edit_perm: missing.append("chỉnh sửa")
+        if not has_delete_perm: missing.append("xóa")
+        st.warning(f"⚠️ Bạn không có quyền { ' và '.join(missing) } hạng mục.")
+
     cols = st.columns(4)
     with cols[0]:
         p_to_edit = st.selectbox("Chọn hạng mục chỉnh sửa tiến trình", [f"{p['id']} - {p['Hang_muc']}" for p in projects_sorted], key="sel_edit_unified")
     
     with cols[1]:
-        if st.button("✏️ Cập nhật tiến trình", key="btn_edit_unified"):
-            p_id = int(p_to_edit.split(" - ")[0])
-            st.session_state['edit_project_id'] = p_id
-            st.session_state['show_edit_form'] = True
+        if st.button("✏️ Cập nhật tiến trình", key="btn_edit_unified", disabled=not has_edit_perm):
+            if not has_edit_perm:
+                st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+            else:
+                p_id = int(p_to_edit.split(" - ")[0])
+                st.session_state['edit_project_id'] = p_id
+                st.session_state['show_edit_form'] = True
             
     with cols[2]:
-        if st.button("🗑️ Xóa hạng mục", key="btn_delete_unified"):
-            p_id = int(p_to_edit.split(" - ")[0])
-            conn = database.get_connection()
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM master_bang_tonghop WHERE id = ?", (p_id,))
-            conn.commit()
-            conn.close()
-            st.success("Đã xóa hạng mục thành công!")
-            st.rerun()
+        if st.button("🗑️ Xóa hạng mục", key="btn_delete_unified", disabled=not has_delete_perm):
+            if not has_delete_perm:
+                st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+            else:
+                p_id = int(p_to_edit.split(" - ")[0])
+                conn = database.get_connection()
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM master_bang_tonghop WHERE id = ?", (p_id,))
+                conn.commit()
+                conn.close()
+                st.success("Đã xóa hạng mục thành công!")
+                st.rerun()
 
     # Form updating details (Redesigned to be tabs based and super smooth)
     if st.session_state.get('show_edit_form') and st.session_state.get('edit_project_id'):
@@ -1288,8 +1386,13 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                     st.write("**Phân tích Tiến độ:**")
                     e_danh_gia = st.text_area("Đánh giá tiến độ & giải pháp hành động", value=proj['Danh_gia_Thang'] or "")
 
-            submitted_edit = st.form_submit_button("Lưu thay đổi")
+            has_edit_perm = check_permission('Sua')
+            if not has_edit_perm:
+                st.warning("⚠️ Bạn không có quyền chỉnh sửa hạng mục này.")
+            submitted_edit = st.form_submit_button("Lưu thay đổi", disabled=not has_edit_perm)
             if submitted_edit:
+                if not has_edit_perm:
+                    st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
                 conn = database.get_connection()
                 cursor = conn.cursor()
                 
@@ -1341,9 +1444,14 @@ elif choice == "📂 01. Hồ sơ Tiền khởi công":
                 h_nguoi_duyet = st.text_input("Kỹ sư duyệt")
                 h_tt = st.selectbox("Trạng thái duyệt", ['Chưa lập', 'Đang lập', 'Chờ duyệt', 'Đã duyệt', 'Từ chối'], index=3)
                 
-            submitted_hso = st.form_submit_button("Lưu Hồ sơ")
+            has_add_perm = check_permission('Them_HD')
+            if not has_add_perm:
+                st.warning("⚠️ Bạn không có quyền thêm mới hồ sơ.")
+            submitted_hso = st.form_submit_button("Lưu Hồ sơ", disabled=not has_add_perm)
             if submitted_hso:
-                if not h_ten:
+                if not has_add_perm:
+                    st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+                elif not h_ten:
                     st.error("Vui lòng nhập Tên hồ sơ.")
                 else:
                     ma_bsc_val = sel_bsc.split(" - ")[0]
@@ -1404,9 +1512,14 @@ elif choice == "📅 02. Kế hoạch Tháng/Tuần":
                 kh_nguoi_duyet = st.text_input("Cán bộ duyệt")
                 kh_ngay_duyet = st.date_input("Ngày phê duyệt", value=datetime.date.today())
                 
-            submitted_kh = st.form_submit_button("Lưu Kế hoạch")
+            has_add_perm = check_permission('Them_HD')
+            if not has_add_perm:
+                st.warning("⚠️ Bạn không có quyền thêm mới kế hoạch.")
+            submitted_kh = st.form_submit_button("Lưu Kế hoạch", disabled=not has_add_perm)
             if submitted_kh:
-                if not kh_nd:
+                if not has_add_perm:
+                    st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+                elif not kh_nd:
                     st.error("Vui lòng điền Nội dung đệ trình chính.")
                 else:
                     ma_bsc_val = sel_bsc.split(" - ")[0]
@@ -1470,9 +1583,14 @@ elif choice == "⚠️ 03. Quản lý Phát sinh":
                 ps_tt = st.selectbox("Trạng thái duyệt", ['Chờ duyệt', 'Đã duyệt', 'Nháp'])
                 ps_nguoi_duyet = st.text_input("Cán bộ thẩm định/duyệt")
                 
-            submitted_ps = st.form_submit_button("Lưu Đệ trình")
+            has_add_perm = check_permission('Them_HD')
+            if not has_add_perm:
+                st.warning("⚠️ Bạn không có quyền báo cáo phát sinh.")
+            submitted_ps = st.form_submit_button("Lưu Đệ trình", disabled=not has_add_perm)
             if submitted_ps:
-                if not ps_ma:
+                if not has_add_perm:
+                    st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+                elif not ps_ma:
                     st.error("Vui lòng nhập Mã phát sinh.")
                 else:
                     ma_bsc_val = sel_bsc.split(" - ")[0]
@@ -1541,9 +1659,14 @@ elif choice == "🚚 04. Cung ứng Đặc thù":
                 cu_tt = st.selectbox("Trạng thái duyệt đệ trình", ['Chờ duyệt', 'Đã duyệt'])
                 cu_nguoi_duyet = st.text_input("Người duyệt")
                 
-            submitted_cu = st.form_submit_button("Lưu Yêu cầu")
+            has_add_perm = check_permission('Them_HD')
+            if not has_add_perm:
+                st.warning("⚠️ Bạn không có quyền đệ trình yêu cầu cung ứng.")
+            submitted_cu = st.form_submit_button("Lưu Yêu cầu", disabled=not has_add_perm)
             if submitted_cu:
-                if not cu_ma or not cu_vt:
+                if not has_add_perm:
+                    st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+                elif not cu_ma or not cu_vt:
                     st.error("Vui lòng nhập đầy đủ Mã yêu cầu và Tên vật tư.")
                 else:
                     ma_bsc_val = sel_bsc.split(" - ")[0]
@@ -1612,9 +1735,14 @@ elif choice == "🚀 05. Bù Tiến độ":
                 bu_kq = st.text_input("Đánh giá kết quả thực hiện bù")
                 bu_tt_trienkhai = st.selectbox("Trạng thái triển khai", ['Đang thực hiện', 'Đã hoàn thành', 'Đóng'])
                 
-            submitted_bu = st.form_submit_button("Lưu Phương án")
+            has_add_perm = check_permission('Them_HD')
+            if not has_add_perm:
+                st.warning("⚠️ Bạn không có quyền thiết lập phương án bù tiến độ.")
+            submitted_bu = st.form_submit_button("Lưu Phương án", disabled=not has_add_perm)
             if submitted_bu:
-                if not bu_pa:
+                if not has_add_perm:
+                    st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+                elif not bu_pa:
                     st.error("Vui lòng điền Tên giải pháp bù.")
                 else:
                     ma_bsc_val = sel_bsc.split(" - ")[0]
@@ -1925,9 +2053,14 @@ elif choice == "👥 Quản lý Nhân sự":
                 add_sua_cdt = st.checkbox("Sửa CĐT BĐ", value=False)
                 add_cap_nhat = st.checkbox("Cập nhật CĐT", value=False)
                 
-            btn_add_ns = st.form_submit_button("Lưu nhân sự")
+            has_add_perm = check_permission('Them_HD')
+            if not has_add_perm:
+                st.warning("⚠️ Bạn không có quyền thêm mới nhân sự.")
+            btn_add_ns = st.form_submit_button("Lưu nhân sự", disabled=not has_add_perm)
             if btn_add_ns:
-                if not add_ma or not add_ten:
+                if not has_add_perm:
+                    st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+                elif not add_ma or not add_ten:
                     st.error("Vui lòng nhập Mã NV và Họ & Tên.")
                 else:
                     conn = database.get_connection()
@@ -1974,9 +2107,14 @@ elif choice == "👥 Quản lý Nhân sự":
                         edit_sua_cdt = st.checkbox("Sửa CĐT BĐ", value=(row_edit['Sua_CDT_BD'] == 1))
                         edit_cap_nhat = st.checkbox("Cập nhật CĐT", value=(row_edit['Cap_Nhat_CDT'] == 1))
                         
-                    btn_edit_ns = st.form_submit_button("Lưu thay đổi")
+                    has_edit_perm = check_permission('Sua')
+                    if not has_edit_perm:
+                        st.warning("⚠️ Bạn không có quyền chỉnh sửa thông tin nhân sự.")
+                    btn_edit_ns = st.form_submit_button("Lưu thay đổi", disabled=not has_edit_perm)
                     if btn_edit_ns:
-                        if not edit_ma or not edit_ten:
+                        if not has_edit_perm:
+                            st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+                        elif not edit_ma or not edit_ten:
                             st.error("Mã NV và Họ & Tên không được bỏ trống.")
                         else:
                             conn = database.get_connection()
@@ -2001,11 +2139,17 @@ elif choice == "👥 Quản lý Nhân sự":
             sel_ns_del = st.selectbox("Chọn nhân viên cần xóa:", ns_list_del, key="sel_del_ns")
             sel_id_del = int(sel_ns_del.split(" - ")[0])
             
-            if st.button("❌ Xác nhận xóa vĩnh viễn", key="btn_confirm_del_ns", type="primary"):
-                conn = database.get_connection()
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM nhan_su WHERE id = ?", (sel_id_del,))
-                conn.commit()
-                conn.close()
-                st.success("Đã xóa nhân viên thành công!")
-                st.rerun()
+            has_delete_perm = check_permission('Xoa_HD')
+            if not has_delete_perm:
+                st.warning("⚠️ Bạn không có quyền xóa nhân sự.")
+            if st.button("❌ Xác nhận xóa vĩnh viễn", key="btn_confirm_del_ns", type="primary", disabled=not has_delete_perm):
+                if not has_delete_perm:
+                    st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+                else:
+                    conn = database.get_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM nhan_su WHERE id = ?", (sel_id_del,))
+                    conn.commit()
+                    conn.close()
+                    st.success("Đã xóa nhân viên thành công!")
+                    st.rerun()
