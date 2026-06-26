@@ -825,7 +825,10 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     # Import Excel data expander
     with st.expander("📥 Nhập dữ liệu từ file Excel (Import)"):
         st.write("Tải lên file Excel để cập nhật toàn bộ cơ sở dữ liệu. Lưu ý: Thao tác này sẽ xóa sạch dữ liệu cũ và cập nhật lại theo file mới.")
-        has_import_perm = check_permission('Them_HD')
+        curr_user = st.session_state.get('current_user') or {}
+        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2')
+        is_ktkh_qltk = (curr_user.get('Vai_Tro') in ('KTKH', 'QLTK'))
+        has_import_perm = is_admin or is_ktkh_qltk or check_permission('Them_HD')
         if not has_import_perm:
             st.warning("⚠️ Bạn không có quyền nhập dữ liệu từ Excel.")
         
@@ -865,7 +868,10 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 new_ngay_bd = st.date_input("Ngày bắt đầu (Yêu cầu CĐT)", value=None)
                 new_ngay_kt = st.date_input("Ngày kết thúc (Yêu cầu CĐT)", value=None)
                 
-            has_add_perm = check_permission('Them_HD')
+            curr_user = st.session_state.get('current_user') or {}
+            is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2')
+            is_ktkh_qltk = (curr_user.get('Vai_Tro') in ('KTKH', 'QLTK'))
+            has_add_perm = is_admin or is_ktkh_qltk or check_permission('Them_HD')
             if not has_add_perm:
                 st.warning("⚠️ Bạn không có quyền thêm mới hạng mục.")
             submitted = st.form_submit_button("Lưu Hạng mục", disabled=not has_add_perm)
@@ -1331,49 +1337,18 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         }
         render_project_grid(projects_sorted, cols_all, "all")
 
-    # Unified Action layout below the tabs (super clean and non-repeating)
-    st.write("---")
-    st.write("⚙️ *Hành động nhanh cho Hạng mục công việc:*")
-    
-    has_edit_perm = check_permission('Sua')
-    has_delete_perm = check_permission('Xoa_HD')
-    if not has_edit_perm or not has_delete_perm:
-        missing = []
-        if not has_edit_perm: missing.append("chỉnh sửa")
-        if not has_delete_perm: missing.append("xóa")
-        st.warning(f"⚠️ Bạn không có quyền { ' và '.join(missing) } hạng mục.")
-
-    cols = st.columns(4)
-    with cols[0]:
-        p_to_edit = st.selectbox("Chọn hạng mục chỉnh sửa tiến trình", [f"{p['id']} - {p['Hang_muc'].strip()}" for p in projects_sorted if not p.get('is_parent')], key="sel_edit_unified")
-    
-    with cols[1]:
-        if st.button("✏️ Cập nhật tiến trình", key="btn_edit_unified", disabled=not has_edit_perm):
-            if not has_edit_perm:
-                st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
-            else:
-                p_id = int(p_to_edit.split(" - ")[0])
-                st.session_state['edit_project_id'] = p_id
-                st.session_state['show_edit_form'] = True
-            
-    with cols[2]:
-        if st.button("🗑️ Xóa hạng mục", key="btn_delete_unified", disabled=not has_delete_perm):
-            if not has_delete_perm:
-                st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
-            else:
-                p_id = int(p_to_edit.split(" - ")[0])
-                conn = database.get_connection()
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM master_bang_tonghop WHERE id = ?", (p_id,))
-                conn.commit()
-                conn.close()
-                st.success("Đã xóa hạng mục thành công!")
-                st.rerun()
-
-    # Form updating details (Redesigned to be tabs based and super smooth)
+    # Unified     # Form updating details (Redesigned to be tabs based and super smooth)
     if st.session_state.get('show_edit_form') and st.session_state.get('edit_project_id'):
         p_id = st.session_state['edit_project_id']
         proj = business_logic.get_project_by_id(p_id)
+        
+        curr_user = st.session_state.get('current_user') or {}
+        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2')
+        is_ktkh_qltk = (curr_user.get('Vai_Tro') in ('KTKH', 'QLTK'))
+        has_sua = (curr_user.get('Sua') == 1)
+        
+        can_edit_dau_vao = is_admin or is_ktkh_qltk
+        can_edit_procurement_and_progress = is_admin or (has_sua and not is_ktkh_qltk)
         
         st.divider()
         st.markdown(f"### ✏️ Biểu mẫu Cập nhật chi tiết: **{proj['Hang_muc']}**")
@@ -1385,44 +1360,46 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
             with etab1:
                 col_e1, col_e2 = st.columns(2)
                 with col_e1:
-                    e_tt = st.text_input("Mã TT", value=proj['TT'] or "")
-                    e_ma_bsc = st.text_input("Mã BSC", value=proj['Ma_BSC'] or "")
-                    e_goi_thau = st.text_input("Gói thầu", value=proj['Goi_thau'] or "")
-                    e_phu_trach = st.text_input("Người phụ trách", value=proj['Phu_trach'] or "")
+                    e_tt = st.text_input("Mã TT", value=proj['TT'] or "", disabled=not can_edit_dau_vao)
+                    e_ma_bsc = st.text_input("Mã BSC", value=proj['Ma_BSC'] or "", disabled=not can_edit_dau_vao)
+                    e_goi_thau = st.text_input("Gói thầu", value=proj['Goi_thau'] or "", disabled=not can_edit_dau_vao)
+                    e_phu_trach = st.text_input("Người phụ trách", value=proj['Phu_trach'] or "", disabled=not can_edit_dau_vao)
                 with col_e2:
-                    e_ngay_bd = st.date_input("Ngày BĐ (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_BD_YC'], '%Y-%m-%d').date() if proj['Ngay_BD_YC'] else None)
-                    e_ngay_kt = st.date_input("Ngày KT (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_KT_YC'], '%Y-%m-%d').date() if proj['Ngay_KT_YC'] else None)
-                    e_ngan_sach = st.number_input("Ngân sách (tỷ)", min_value=0.0, value=proj['Ngan_sach'] or 0.0, step=0.1)
+                    e_ngay_bd = st.date_input("Ngày BĐ (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_BD_YC'], '%Y-%m-%d').date() if proj['Ngay_BD_YC'] else None, disabled=not can_edit_dau_vao)
+                    e_ngay_kt = st.date_input("Ngày KT (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_KT_YC'], '%Y-%m-%d').date() if proj['Ngay_KT_YC'] else None, disabled=not can_edit_dau_vao)
+                    e_ngan_sach = st.number_input("Ngân sách (tỷ)", min_value=0.0, value=proj['Ngan_sach'] or 0.0, step=0.1, disabled=not can_edit_dau_vao)
                     
             with etab2:
                 col_e3, col_e4 = st.columns(2)
                 with col_e3:
                     st.write("**Hồ sơ Thiết kế & Khảo sát:**")
-                    e_kh_hstk = st.date_input("KH phát hành HSTKTC", value=datetime.datetime.strptime(proj['KH_phat_hanh_HSTKTC'], '%Y-%m-%d').date() if proj['KH_phat_hanh_HSTKTC'] else None)
-                    e_tt_hstk = st.selectbox("TT HSTKTC", ["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"], index=["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"].index(proj['TT_HSTKTC'] or "Chưa có TK"))
-                    e_tt_specs = st.selectbox("TT SPECS", ["Chưa có", "Đang lập", "Đã cấp"], index=["Chưa có", "Đang lập", "Đã cấp"].index(proj['TT_SPECS'] or "Chưa có"))
-                    e_tt_boq = st.selectbox("TT BOQ/KL", ["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"], index=["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"].index(proj['TT_BOQ'] or "Chưa bàn giao"))
+                    e_kh_hstk = st.date_input("KH phát hành HSTKTC", value=datetime.datetime.strptime(proj['KH_phat_hanh_HSTKTC'], '%Y-%m-%d').date() if proj['KH_phat_hanh_HSTKTC'] else None, disabled=not can_edit_dau_vao)
+                    e_tt_hstk = st.selectbox("TT HSTKTC", ["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"], index=["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"].index(proj['TT_HSTKTC'] or "Chưa có TK"), disabled=not can_edit_dau_vao)
+                    e_tt_specs = st.selectbox("TT SPECS", ["Chưa có", "Đang lập", "Đã cấp"], index=["Chưa có", "Đang lập", "Đã cấp"].index(proj['TT_SPECS'] or "Chưa có"), disabled=not can_edit_dau_vao)
+                    e_tt_boq = st.selectbox("TT BOQ/KL", ["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"], index=["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"].index(proj['TT_BOQ'] or "Chưa bàn giao"), disabled=not can_edit_dau_vao)
                 with col_e4:
                     st.write("**Hợp đồng Cung ứng:**")
-                    e_kh_lcnt = st.date_input("KH LCNT", value=datetime.datetime.strptime(proj['KH_LCNT'], '%Y-%m-%d').date() if proj['KH_LCNT'] else None)
-                    e_tt_lcnt = st.selectbox("TT LCNT", ["Chưa LCNT", "Đang mời thầu", "Đang đánh giá", "Đã có KQ", "Đã ký"], index=["Chưa LCNT", "Đang mời thầu", "Đang đánh giá", "Đã có KQ", "Đã ký"].index(proj['TT_LCNT'] or "Chưa LCNT"))
-                    e_kh_hdcu = st.date_input("KH Ký HĐCU", value=datetime.datetime.strptime(proj['KH_Ky_HDCU'], '%Y-%m-%d').date() if proj['KH_Ky_HDCU'] else None)
-                    e_tt_hdcu = st.selectbox("TT Ký HĐCU", ["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"], index=["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"].index(proj['TT_Ky_HDCU'] or "Chưa CU"))
-                    e_val_hdcu = st.number_input("Giá trị HĐ Cung ứng (tỷ)", min_value=0.0, value=proj['Gia_tri_HDCU'] or 0.0, step=0.1)
-
+                    e_kh_lcnt = st.date_input("KH LCNT", value=datetime.datetime.strptime(proj['KH_LCNT'], '%Y-%m-%d').date() if proj['KH_LCNT'] else None, disabled=not can_edit_procurement_and_progress)
+                    e_tt_lcnt = st.selectbox("TT LCNT", ["Chưa LCNT", "Đang mời thầu", "Đang đánh giá", "Đã có KQ", "Đã ký"], index=["Chưa LCNT", "Đang mời thầu", "Đang đánh giá", "Đã có KQ", "Đã ký"].index(proj['TT_LCNT'] or "Chưa LCNT"), disabled=not can_edit_procurement_and_progress)
+                    e_kh_hdcu = st.date_input("KH Ký HĐCU", value=datetime.datetime.strptime(proj['KH_Ky_HDCU'], '%Y-%m-%d').date() if proj['KH_Ky_HDCU'] else None, disabled=not can_edit_procurement_and_progress)
+                    e_tt_hdcu = st.selectbox("TT Ký HĐCU", ["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"], index=["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"].index(proj['TT_Ky_HDCU'] or "Chưa CU"), disabled=not can_edit_procurement_and_progress)
+                    e_val_hdcu = st.number_input("Giá trị HĐ Cung ứng (tỷ)", min_value=0.0, value=proj['Gia_tri_HDCU'] or 0.0, step=0.1, disabled=not can_edit_procurement_and_progress)
+ 
             with etab3:
                 col_e5, col_e6 = st.columns(2)
                 with col_e5:
                     st.write("**Thời gian & Kế hoạch:**")
-                    e_ngay_kc = st.date_input("Ngày Khởi công", value=datetime.datetime.strptime(proj['Ngay_BD_Khoi_Cong'], '%Y-%m-%d').date() if proj['Ngay_BD_Khoi_Cong'] else None)
-                    e_tt_khtk = st.selectbox("TT KHTK", ["Chưa trình", "Đang duyệt", "Đã duyệt"], index=["Chưa trình", "Đang duyệt", "Đã duyệt"].index(proj['TT_KHTK'] or "Chưa trình"))
-                    e_kh_thang = st.number_input("Kế hoạch sản lượng tháng (%)", min_value=0.0, max_value=100.0, value=float((proj['KH_Thang'] or 0.0) * 100)) / 100.0
-                    e_kq_thang = st.number_input("Kết quả sản lượng thực tế (%)", min_value=0.0, max_value=100.0, value=float((proj['KQ_Thang'] or 0.0) * 100)) / 100.0
+                    e_ngay_kc = st.date_input("Ngày Khởi công", value=datetime.datetime.strptime(proj['Ngay_BD_Khoi_Cong'], '%Y-%m-%d').date() if proj['Ngay_BD_Khoi_Cong'] else None, disabled=not can_edit_procurement_and_progress)
+                    e_tt_khtk = st.selectbox("TT KHTK", ["Chưa trình", "Đang duyệt", "Đã duyệt"], index=["Chưa trình", "Đang duyệt", "Đã duyệt"].index(proj['TT_KHTK'] or "Chưa trình"), disabled=not can_edit_procurement_and_progress)
+                    e_kh_thang_pct = st.number_input("Kế hoạch sản lượng tháng (%)", min_value=0.0, max_value=100.0, value=float((proj['KH_Thang'] or 0.0) * 100), disabled=not can_edit_procurement_and_progress)
+                    e_kh_thang = e_kh_thang_pct / 100.0
+                    e_kq_thang_pct = st.number_input("Kết quả sản lượng thực tế (%)", min_value=0.0, max_value=100.0, value=float((proj['KQ_Thang'] or 0.0) * 100), disabled=not can_edit_procurement_and_progress)
+                    e_kq_thang = e_kq_thang_pct / 100.0
                 with col_e6:
                     st.write("**Phân tích Tiến độ:**")
-                    e_danh_gia = st.text_area("Đánh giá tiến độ & giải pháp hành động", value=proj['Danh_gia_Thang'] or "")
-
-            has_edit_perm = check_permission('Sua')
+                    e_danh_gia = st.text_area("Đánh giá tiến độ & giải pháp hành động", value=proj['Danh_gia_Thang'] or "", disabled=not can_edit_procurement_and_progress)
+ 
+            has_edit_perm = can_edit_dau_vao or can_edit_procurement_and_progress
             if not has_edit_perm:
                 st.warning("⚠️ Bạn không có quyền chỉnh sửa hạng mục này.")
             submitted_edit = st.form_submit_button("Lưu thay đổi", disabled=not has_edit_perm)
