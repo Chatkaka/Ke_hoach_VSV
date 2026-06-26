@@ -248,8 +248,59 @@ def style_subtable_rows(df):
 
 
 def render_dataframe_html(df, column_config, key_suffix=""):
+    # Vietnamese headers lookup dictionary to auto-translate database columns
+    vietnamese_headers = {
+        "id": "ID",
+        "ma_bsc": "Mã BSC",
+        "hang_muc": "Hạng mục",
+        "loai_ho_so": "Loại hồ sơ",
+        "ten_san_pham": "Tên sản phẩm",
+        "link_luu_tru": "Link lưu trữ",
+        "ngay_ht": "Ngày hoàn thành",
+        "nguoi_lap": "Người lập",
+        "nguoi_duyet": "Người duyệt",
+        "tt_duyet": "Trạng thái duyệt",
+        "thang": "Tháng",
+        "loai_tai_lieu": "Loại tài liệu",
+        "noi_dung_chinh": "Nội dung chính",
+        "dat_yckt_cdt": "Đạt YCKT CĐT?",
+        "link_tai_lieu": "Link tài liệu",
+        "tt_lap": "TT Lập",
+        "ngay_duyet": "Ngày duyệt",
+        "ma_ps": "Mã phát sinh",
+        "ngay_ps": "Ngày phát sinh",
+        "loai": "Phân loại",
+        "mo_ta": "Mô tả chi tiết",
+        "nguyen_nhan": "Nguyên nhân",
+        "de_xuat_xu_ly": "Đề xuất xử lý",
+        "gia_tri_phat_sinh": "Giá trị PS (tỷ)",
+        "anh_huong_td": "Ảnh hưởng TD (ngày)",
+        "link_ho_so": "Link hồ sơ",
+        "tt_phe_duyet": "TT Phê duyệt",
+        "noi_dung_dieu_chinh": "Nội dung điều chỉnh",
+        "ghi_chu": "Ghi chú",
+        "ma_yc": "Mã yêu cầu",
+        "ngay_yc": "Ngày yêu cầu",
+        "loai_yc": "Tính chất",
+        "vat_tu_thiet_bi": "Vật tư / Thiết bị",
+        "noi_dung_yeu_cau": "Mô tả / Lý do",
+        "kl": "Khối lượng",
+        "dvt": "Đơn vị tính",
+        "trong_ngoai_hdcu": "Phạm vi HĐ",
+        "ngay_can": "Ngày cần vật tư",
+        "tt_cung_ung": "TT Cung ứng",
+        "ngay_phat_hien": "Ngày phát hiện chậm",
+        "muc_cham_ngay": "Số ngày trễ",
+        "phuong_an": "Giải pháp bù",
+        "chi_tiet_giai_phap": "Kế hoạch chi tiết",
+        "moc_cam_ket_ht": "Hạn chót cam kết",
+        "link_phuong_an": "Link phương án",
+        "kq_thuc_hien_bu": "Đánh giá kết quả bù",
+        "tt_trien_khai": "TT Triển khai"
+    }
+
     html = []
-    
+
     css = """
     <style>
         .table-wrapper {
@@ -331,7 +382,7 @@ def render_dataframe_html(df, column_config, key_suffix=""):
         .badge-red { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
         .badge-yellow { background-color: #fefce8; color: #a16207; border: 1px solid #fef08a; }
         .badge-orange { background-color: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
-        
+
         /* Link button style */
         .btn-link {
             display: inline-flex;
@@ -356,16 +407,23 @@ def render_dataframe_html(df, column_config, key_suffix=""):
     html.append(css)
     html.append('<div class="table-wrapper">')
     html.append('<table class="styled-table">')
-    
+
     cols_to_render = []
     for col in df.columns:
-        if col in column_config and column_config[col] is None:
+        col_lower = col.lower()
+        # Find if it is hidden in column_config (case-insensitive)
+        cfg_key = None
+        for k in column_config.keys():
+            if k and k.lower() == col_lower:
+                cfg_key = k
+                break
+        if cfg_key and column_config[cfg_key] is None:
             continue
         cols_to_render.append(col)
-        
+
     total_cols = len(cols_to_render)
     default_pct = int(100 / max(total_cols, 1))
-    
+
     # Custom widths for sub-table labels to prevent wrapping overflow
     col_pcts = {
         "Mã BSC": "10%",
@@ -423,64 +481,106 @@ def render_dataframe_html(df, column_config, key_suffix=""):
         "Đánh giá kết quả bù": "15%",
         "TT Triển khai": "10%"
     }
-    
+
     html.append('<colgroup>')
     for col in cols_to_render:
-        cfg = column_config.get(col)
-        label = col
-        width_str = f"{default_pct}%"
+        col_lower = col.lower()
+        label = vietnamese_headers.get(col_lower, col)
         
-        if cfg is not None:
-            if hasattr(cfg, 'label') and cfg.label:
-                label = cfg.label
-            elif hasattr(cfg, 'title') and cfg.title:
-                label = cfg.title
-            
-            if label in col_pcts:
-                width_str = col_pcts[label]
-            elif hasattr(cfg, 'width') and cfg.width:
-                width_str = f"{max(int(cfg.width / 12), 4)}%"
+        cfg_key = None
+        for k in column_config.keys():
+            if k and k.lower() == col_lower:
+                cfg_key = k
+                break
                 
+        if cfg_key:
+            cfg = column_config[cfg_key]
+            if cfg is not None:
+                if isinstance(cfg, str):
+                    label = cfg
+                elif hasattr(cfg, 'label') and cfg.label:
+                    label = cfg.label
+                elif hasattr(cfg, 'title') and cfg.title and not callable(cfg.title):
+                    label = cfg.title
+
+        width_str = f"{default_pct}%"
+        if label in col_pcts:
+            width_str = col_pcts[label]
+        elif cfg_key:
+            cfg = column_config[cfg_key]
+            if cfg and hasattr(cfg, 'width') and cfg.width:
+                width_str = f"{max(int(cfg.width / 12), 4)}%"
+
         html.append(f'<col style="width: {width_str};">')
     html.append('</colgroup>')
-    
+
     html.append('<thead><tr>')
     for col in cols_to_render:
-        cfg = column_config.get(col)
-        label = col
-        if cfg is not None:
-            if hasattr(cfg, 'label') and cfg.label:
-                label = cfg.label
-            elif hasattr(cfg, 'title') and cfg.title:
-                label = cfg.title
+        col_lower = col.lower()
+        label = vietnamese_headers.get(col_lower, col)
+        
+        cfg_key = None
+        for k in column_config.keys():
+            if k and k.lower() == col_lower:
+                cfg_key = k
+                break
+                
+        if cfg_key:
+            cfg = column_config[cfg_key]
+            if cfg is not None:
+                if isinstance(cfg, str):
+                    label = cfg
+                elif hasattr(cfg, 'label') and cfg.label:
+                    label = cfg.label
+                elif hasattr(cfg, 'title') and cfg.title and not callable(cfg.title):
+                    label = cfg.title
+
         html.append(f'<th>{label}</th>')
     html.append('</tr></thead>')
-    
+
     html.append('<tbody>')
     for idx, row in df.iterrows():
         is_wbs = False
-        if "Ma_BSC" in row and (row["Ma_BSC"] is None or row["Ma_BSC"] == "" or row["Ma_BSC"] == "--- WBS ---" or "WBS" in str(row["Ma_BSC"])):
-            is_wbs = True
-        
+        # Case-insensitive WBS detection
+        ma_bsc_key = None
+        for k in row.keys():
+            if k.lower() == "ma_bsc":
+                ma_bsc_key = k
+                break
+        if ma_bsc_key:
+            val_bsc = row[ma_bsc_key]
+            if val_bsc is None or val_bsc == "" or val_bsc == "--- WBS ---" or "WBS" in str(val_bsc):
+                is_wbs = True
+
         row_class = 'class="wbs-row"' if is_wbs else ""
         html.append(f'<tr {row_class}>')
-        
+
         for col in cols_to_render:
             val = row[col]
             val_str = str(val).strip() if val is not None else ""
-            
+            col_lower = col.lower()
+
             cell_val = ""
-            cfg = column_config.get(col)
-            label = col
-            is_link = False
-            if cfg is not None:
-                if hasattr(cfg, 'label') and cfg.label:
-                    label = cfg.label
-                elif hasattr(cfg, 'title') and cfg.title:
-                    label = cfg.title
-                if type(cfg).__name__ == "LinkColumn":
-                    is_link = True
+            cfg_key = None
+            for k in column_config.keys():
+                if k and k.lower() == col_lower:
+                    cfg_key = k
+                    break
             
+            cfg = column_config[cfg_key] if cfg_key else None
+            label = vietnamese_headers.get(col_lower, col)
+            if cfg is not None:
+                if isinstance(cfg, str):
+                    label = cfg
+                elif hasattr(cfg, 'label') and cfg.label:
+                    label = cfg.label
+                elif hasattr(cfg, 'title') and cfg.title and not callable(cfg.title):
+                    label = cfg.title
+            
+            is_link = False
+            if cfg is not None and type(cfg).__name__ == "LinkColumn":
+                is_link = True
+
             if is_link:
                 if val_str and val_str.lower() != 'none' and val_str.lower() != 'nan':
                     disp_text = "Xem tài liệu 📄"
@@ -489,20 +589,22 @@ def render_dataframe_html(df, column_config, key_suffix=""):
                     cell_val = f'<a href="{val_str}" target="_blank" class="btn-link">{disp_text}</a>'
                 else:
                     cell_val = ""
-            elif col in ("TT_duyet", "TT_lap", "Dat_YCKT_CDT", "TT_Phe_duyet", "TT_Trien_khai", "Trong_Ngoai_HDCU", "TT_cung_ung"):
+            elif col_lower in ("tt_duyet", "tt_lap", "dat_yckt_cdt", "tt_phe_duyet", "tt_trien_khai", "trong_ngoai_hdcu", "tt_cung_ung"):
+                # Clean value mapping in Vietnamese
+                val_clean = val_str
                 if val_str in ("Đã duyệt", "Đã lập", "Có", "Trong HĐCU", "Đã hoàn thành", "Đã ký", "Đã CU"):
-                    cell_val = f'<span class="status-badge badge-green">{val_str}</span>'
+                    cell_val = f'<span class="status-badge badge-green">{val_clean}</span>'
                 elif val_str in ("Chưa lập", "Từ chối", "Chưa", "Ngoài HĐCU", "Từ chối duyệt", "Đóng"):
-                    cell_val = f'<span class="status-badge badge-red">{val_str}</span>'
+                    cell_val = f'<span class="status-badge badge-red">{val_clean}</span>'
                 elif any(word in val_str for word in ("Đang", "Chờ", "Đang sửa đổi", "Đang thực hiện", "Nháp")):
-                    cell_val = f'<span class="status-badge badge-yellow">{val_str}</span>'
+                    cell_val = f'<span class="status-badge badge-yellow">{val_clean}</span>'
                 else:
-                    cell_val = val_str
-            elif col in ("Gia_tri_phat_sinh", "Gia_tri_dinh_muc", "KL"):
+                    cell_val = val_clean
+            elif col_lower in ("gia_tri_phat_sinh", "gia_tri_dinh_muc", "kl"):
                 try:
                     num_val = float(val) if val not in ("", None) else 0.0
                     if num_val > 0:
-                        if "giá trị" in label.lower() or "tỷ" in label.lower() or col == "Gia_tri_phat_sinh":
+                        if "giá trị" in label.lower() or "tỷ" in label.lower() or col_lower == "gia_tri_phat_sinh":
                             cell_val = f"<b>{num_val:,.2f} tỷ</b>"
                         else:
                             cell_val = f"{num_val:,.2f}"
@@ -510,7 +612,7 @@ def render_dataframe_html(df, column_config, key_suffix=""):
                         cell_val = ""
                 except ValueError:
                     cell_val = val_str
-            elif col in ("Muc_cham_ngay", "Anh_huong_TD"):
+            elif col_lower in ("muc_cham_ngay", "anh_huong_td"):
                 try:
                     num_val = int(float(val)) if val not in ("", None) else 0
                     if num_val > 0:
@@ -521,14 +623,14 @@ def render_dataframe_html(df, column_config, key_suffix=""):
                     cell_val = val_str
             else:
                 cell_val = val_str
-                
+
             html.append(f'<td>{cell_val}</td>')
         html.append('</tr>')
-        
+
     html.append('</tbody>')
     html.append('</table>')
     html.append('</div>')
-    
+
     st.markdown("".join(html), unsafe_allow_html=True)
 
 
