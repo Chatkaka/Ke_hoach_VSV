@@ -150,7 +150,8 @@ menu_options = [
     "⚠️ 03. Quản lý Phát sinh",
     "🚚 04. Cung ứng Đặc thù",
     "🚀 05. Bù Tiến độ",
-    "🤖 Trợ lý AI Thông minh"
+    "🤖 Trợ lý AI Thông minh",
+    "👥 Quản lý Nhân sự"
 ]
 choice = st.sidebar.radio("📌 Phân hệ chức năng", menu_options)
 
@@ -1638,3 +1639,271 @@ elif choice == "🤖 Trợ lý AI Thông minh":
                         st.success("🎉 Hệ thống đã được đồng bộ dữ liệu tự động thành công!")
                 except Exception as ex:
                     st.error(f"Lỗi: {ex}")
+
+# --- 9. PERSONNEL & PERMISSIONS MANAGEMENT ---
+elif choice == "👥 Quản lý Nhân sự":
+    st.write("## 👥 Quản lý Danh sách Nhân sự & Phân quyền")
+    
+    conn = database.get_connection()
+    df_ns = pd.read_sql_query("SELECT id, Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT FROM nhan_su", conn)
+    conn.close()
+    
+    # 1. Filter dropdown matching your screen
+    positions = sorted(list(set(df_ns['Chuc_Vu'].dropna().tolist())))
+    filter_options = ["Tất cả Nhân sự"] + positions
+    
+    c_f1, c_f2 = st.columns([8, 2])
+    with c_f1:
+        sel_filter = st.selectbox("Lọc theo loại:", filter_options, key="sel_filter_personnel")
+    
+    if sel_filter != "Tất cả Nhân sự":
+        df_ns = df_ns[df_ns['Chuc_Vu'] == sel_filter]
+        
+    # Render personnel table
+    def render_personnel_html(df):
+        html = []
+        css = """
+        <style>
+            .ns-container {
+                width: 100%;
+                overflow-x: hidden;
+                border-radius: 12px;
+                box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -2px rgba(0, 0, 0, 0.05);
+                border: 1px solid #e2e8f0;
+                margin-bottom: 2rem;
+                background: white;
+            }
+            .ns-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-family: 'Inter', sans-serif;
+                font-size: 0.8rem;
+                color: #334155;
+                table-layout: fixed;
+            }
+            .ns-table th {
+                background-color: #f8fafc !important;
+                color: #475569 !important;
+                font-weight: 600;
+                text-align: left;
+                padding: 12px 14px;
+                position: sticky;
+                top: 0;
+                z-index: 10;
+                border-bottom: 2px solid #e2e8f0;
+                font-size: 0.8rem;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+                word-wrap: break-word;
+                white-space: normal;
+                line-height: 1.3;
+            }
+            .ns-table th::after {
+                content: '';
+                position: absolute;
+                left: 0;
+                bottom: 0;
+                width: 100%;
+                border-bottom: 2px solid #e2e8f0;
+            }
+            .ns-table td {
+                padding: 12px 14px;
+                border-bottom: 1px solid #f1f5f9;
+                vertical-align: middle;
+                word-wrap: break-word;
+                white-space: normal;
+                line-height: 1.4;
+            }
+            .ns-table tr:hover {
+                background-color: #f8fafc !important;
+            }
+            .ns-badge-co {
+                color: #15803d;
+                font-weight: 600;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .ns-badge-khong {
+                color: #b91c1c;
+                font-weight: 600;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .ns-btn-sua {
+                background-color: #fef9c3;
+                color: #854d0e;
+                border: 1px solid #fef08a;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 0.725rem;
+                font-weight: 600;
+                display: inline-block;
+            }
+            .ns-btn-xoa {
+                background-color: #fee2e2;
+                color: #b91c1c;
+                border: 1px solid #fca5a5;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 0.725rem;
+                font-weight: 600;
+                display: inline-block;
+            }
+        </style>
+        """
+        html.append(css)
+        html.append('<div class="ns-container">')
+        html.append('<table class="ns-table">')
+        
+        # Colgroup for widths
+        html.append('<colgroup>')
+        widths = ["6%", "14%", "10%", "8%", "18%", "8%", "7%", "8%", "8%", "8%", "11%"]
+        for w in widths:
+            html.append(f'<col style="width: {w};">')
+        html.append('</colgroup>')
+        
+        # Headers
+        html.append('<thead><tr>')
+        headers = ["Mã NV", "Họ & Tên", "Chức vụ", "Vai trò", "Email", "Thêm HĐ", "Sửa", "Xóa HĐ", "Sửa CĐT BĐ", "Cập nhật CĐT", "Thao tác"]
+        for h in headers:
+            html.append(f'<th>{h}</th>')
+        html.append('</tr></thead>')
+        
+        # Body
+        html.append('<tbody>')
+        for idx, row in df.iterrows():
+            html.append('<tr>')
+            html.append(f'<td style="color: #6366f1; font-weight: 700;">{row["Ma_NV"]}</td>')
+            html.append(f'<td><b>{row["Ho_Ten"]}</b></td>')
+            html.append(f'<td style="color: #64748b;">{row["Chuc_Vu"]}</td>')
+            html.append(f'<td style="color: #64748b;">{row["Vai_Tro"]}</td>')
+            html.append(f'<td style="color: #64748b; font-size: 0.75rem;">{row["Email"]}</td>')
+            
+            # Permissions
+            perm_cols = ["Them_HD", "Sua", "Xoa_HD", "Sua_CDT_BD", "Cap_Nhat_CDT"]
+            for col in perm_cols:
+                if row[col] == 1:
+                    html.append('<td><span class="ns-badge-co">🟢 Có</span></td>')
+                else:
+                    html.append('<td><span class="ns-badge-khong">🔴 Không</span></td>')
+                    
+            # Actions
+            html.append(f'<td><span class="ns-btn-sua">Sửa</span> <span class="ns-btn-xoa">Xóa</span></td>')
+            html.append('</tr>')
+            
+        html.append('</tbody>')
+        html.append('</table>')
+        html.append('</div>')
+        
+        return "".join(html)
+
+    # Render HTML Personnel table
+    st.markdown(render_personnel_html(df_ns), unsafe_allow_html=True)
+    
+    st.write("---")
+    st.write("⚙️ *Hành động nhanh cho Danh sách Nhân sự:*")
+    
+    # 2. Add New Personnel
+    with st.expander("➕ Thêm Nhân viên mới"):
+        with st.form("add_ns_form"):
+            c1, c2 = st.columns(2)
+            with c1:
+                add_ma = st.text_input("Mã Nhân viên (Mã NV) *")
+                add_ten = st.text_input("Họ & Tên *")
+                add_chuc = st.text_input("Chức vụ")
+                add_vai = st.text_input("Vai trò")
+                add_email = st.text_input("Email")
+            with c2:
+                st.write("**Phân quyền chức năng:**")
+                add_them_hd = st.checkbox("Thêm HĐ", value=False)
+                add_sua = st.checkbox("Sửa", value=False)
+                add_xoa_hd = st.checkbox("Xóa HĐ", value=False)
+                add_sua_cdt = st.checkbox("Sửa CĐT BĐ", value=False)
+                add_cap_nhat = st.checkbox("Cập nhật CĐT", value=False)
+                
+            btn_add_ns = st.form_submit_button("Lưu nhân sự")
+            if btn_add_ns:
+                if not add_ma or not add_ten:
+                    st.error("Vui lòng nhập Mã NV và Họ & Tên.")
+                else:
+                    conn = database.get_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO nhan_su (Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (add_ma, add_ten, add_chuc, add_vai, add_email, 
+                          1 if add_them_hd else 0, 1 if add_sua else 0, 1 if add_xoa_hd else 0, 
+                          1 if add_sua_cdt else 0, 1 if add_cap_nhat else 0))
+                    conn.commit()
+                    conn.close()
+                    st.success("Thêm nhân sự mới thành công!")
+                    st.rerun()
+                    
+    # 3. Edit Personnel
+    with st.expander("✏️ Chỉnh sửa thông tin & Phân quyền"):
+        ns_list = [f"{row['id']} - {row['Ho_Ten']} (Mã NV: {row['Ma_NV']})" for idx, row in df_ns.iterrows()]
+        if ns_list:
+            sel_ns = st.selectbox("Chọn nhân viên cần chỉnh sửa:", ns_list, key="sel_edit_ns")
+            sel_id = int(sel_ns.split(" - ")[0])
+            
+            # Fetch employee current info
+            conn = database.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM nhan_su WHERE id = ?", (sel_id,))
+            row_edit = cursor.fetchone()
+            conn.close()
+            
+            if row_edit:
+                with st.form("edit_ns_form"):
+                    ec1, ec2 = st.columns(2)
+                    with ec1:
+                        edit_ma = st.text_input("Mã Nhân viên *", value=row_edit['Ma_NV'] or "")
+                        edit_ten = st.text_input("Họ & Tên *", value=row_edit['Ho_Ten'] or "")
+                        edit_chuc = st.text_input("Chức vụ", value=row_edit['Chuc_Vu'] or "")
+                        edit_vai = st.text_input("Vai trò", value=row_edit['Vai_Tro'] or "")
+                        edit_email = st.text_input("Email", value=row_edit['Email'] or "")
+                    with ec2:
+                        st.write("**Chỉnh sửa quyền:**")
+                        edit_them_hd = st.checkbox("Thêm HĐ", value=(row_edit['Them_HD'] == 1))
+                        edit_sua = st.checkbox("Sửa", value=(row_edit['Sua'] == 1))
+                        edit_xoa_hd = st.checkbox("Xóa HĐ", value=(row_edit['Xoa_HD'] == 1))
+                        edit_sua_cdt = st.checkbox("Sửa CĐT BĐ", value=(row_edit['Sua_CDT_BD'] == 1))
+                        edit_cap_nhat = st.checkbox("Cập nhật CĐT", value=(row_edit['Cap_Nhat_CDT'] == 1))
+                        
+                    btn_edit_ns = st.form_submit_button("Lưu thay đổi")
+                    if btn_edit_ns:
+                        if not edit_ma or not edit_ten:
+                            st.error("Mã NV và Họ & Tên không được bỏ trống.")
+                        else:
+                            conn = database.get_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("""
+                                UPDATE nhan_su
+                                SET Ma_NV = ?, Ho_Ten = ?, Chuc_Vu = ?, Vai_Tro = ?, Email = ?,
+                                    Them_HD = ?, Sua = ?, Xoa_HD = ?, Sua_CDT_BD = ?, Cap_Nhat_CDT = ?
+                                WHERE id = ?
+                            """, (edit_ma, edit_ten, edit_chuc, edit_vai, edit_email,
+                                  1 if edit_them_hd else 0, 1 if edit_sua else 0, 1 if edit_xoa_hd else 0,
+                                  1 if edit_sua_cdt else 0, 1 if edit_cap_nhat else 0, sel_id))
+                            conn.commit()
+                            conn.close()
+                            st.success("Cập nhật thông tin nhân viên thành công!")
+                            st.rerun()
+                            
+    # 4. Delete Personnel
+    with st.expander("🗑️ Xóa nhân viên"):
+        ns_list_del = [f"{row['id']} - {row['Ho_Ten']} (Mã NV: {row['Ma_NV']})" for idx, row in df_ns.iterrows()]
+        if ns_list_del:
+            sel_ns_del = st.selectbox("Chọn nhân viên cần xóa:", ns_list_del, key="sel_del_ns")
+            sel_id_del = int(sel_ns_del.split(" - ")[0])
+            
+            if st.button("❌ Xác nhận xóa vĩnh viễn", key="btn_confirm_del_ns", type="primary"):
+                conn = database.get_connection()
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM nhan_su WHERE id = ?", (sel_id_del,))
+                conn.commit()
+                conn.close()
+                st.success("Đã xóa nhân viên thành công!")
+                st.rerun()
