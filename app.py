@@ -228,8 +228,6 @@ def style_master_rows(df):
     has_bsc_col = "Mã BSC" in df.columns
     for idx in df.index:
         is_wbs = False
-        if has_bsc_col:
-            is_wbs = df.loc[idx, "Mã BSC"] == "--- WBS ---"
             
         if is_wbs:
             for col in df.columns:
@@ -593,16 +591,6 @@ def render_dataframe_html(df, column_config, key_suffix=""):
     html.append('<tbody>')
     for idx, row in df.iterrows():
         is_wbs = False
-        # Case-insensitive WBS detection
-        ma_bsc_key = None
-        for k in row.keys():
-            if k.lower() == "ma_bsc":
-                ma_bsc_key = k
-                break
-        if ma_bsc_key:
-            val_bsc = row[ma_bsc_key]
-            if val_bsc is None or val_bsc == "" or val_bsc == "--- WBS ---" or "WBS" in str(val_bsc):
-                is_wbs = True
 
         row_class = 'class="wbs-row"' if is_wbs else ""
         html.append(f'<tr {row_class}>')
@@ -861,12 +849,12 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         st.error(f"❌ Lỗi khi import file Excel: {e}")
 
     # Add new item
-    with st.expander("➕ Thêm mới Hạng mục công việc (WBS)"):
+    with st.expander("➕ Thêm mới Hạng mục công việc"):
         with st.form("add_project_form"):
             c1, c2, c3 = st.columns(3)
             with c1:
                 new_tt = st.text_input("Mã TT (Ví dụ: 3, 2.1, 2.2.1)")
-                new_ma_bsc = st.text_input("Mã BSC (Nếu là hạng mục WBS cấp con, hãy để trống)")
+                new_ma_bsc = st.text_input("Mã BSC *")
                 new_goi_thau = st.text_input("Gói thầu (PL)")
             with c2:
                 new_nhom_ct = st.selectbox("Nhóm công trình", ["Hạ tầng kỹ thuật", "Xây dựng dân dụng", "Công trình phục vụ KD"])
@@ -884,8 +872,8 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
             if submitted:
                 if not has_add_perm:
                     st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
-                elif not new_hang_muc:
-                    st.error("Vui lòng nhập Tên Hạng mục / Công việc.")
+                elif not new_hang_muc or not new_ma_bsc:
+                    st.error("Vui lòng nhập đầy đủ Mã BSC và Tên Hạng mục / Công việc.")
                 else:
                     conn = database.get_connection()
                     cursor = conn.cursor()
@@ -916,16 +904,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     
     # WBS Tree indent formatting
     def format_wbs_name(hang_muc, tt):
-        if not tt:
-            return hang_muc
-        parts = str(tt).split('.')
-        if len(parts) == 1:
-            return hang_muc
-        elif len(parts) == 2:
-            return f"  └─ {hang_muc}"
-        else:
-            indent = "    " * (len(parts) - 1)
-            return f"{indent}└─ {hang_muc}"
+        return hang_muc
 
     # Master Column configuration
     master_column_config = {
@@ -1106,8 +1085,8 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         
         html.append('<tbody>')
         for p in proj_list:
-            is_wbs = not p['Ma_BSC']
-            tr_class = 'class="wbs-row-style"' if is_wbs else ""
+            is_wbs = False
+            tr_class = ""
             html.append(f'<tr {tr_class}>')
             
             for col_key, col_name in cols_to_show.items():
@@ -1784,16 +1763,15 @@ elif choice == "🚀 05. Bù Tiến độ":
     }
     
     render_dataframe_html(df_bu, bu_column_config, "bu_tien_do")
-
 # --- 8. AI ASSISTANT VIEW ---
 elif choice == "🤖 Trợ lý AI Thông minh":
     st.title("🤖 Trợ lý AI Phân tích Báo cáo Xây dựng")
     
     st.info(
         "Nhập báo cáo tiến độ tuần bằng ngôn ngữ tự nhiên từ công trường. Trợ lý AI sẽ: \n"
-        "1. Xác định đúng hạng mục công việc và Mã BSC tương ứng.\n"
-        "2. Điền kết quả tiến độ và nguyên nhân vào Bảng tổng hợp.\n"
-        "3. Tự động khởi tạo phiếu khắc phục bù tiến độ ở trạng thái 'Đang thực hiện' trong Sổ 05."
+        "1. Tự động đối chiếu Mã BSC và phân tích nội dung báo cáo.\n"
+        "2. Tự động cập nhật tiến độ tuần tương ứng vào Bảng Master chính.\n"
+        "3. Tự động chèn hồ sơ, kế hoạch, phát sinh, cung ứng đặc thù, hoặc phương án bù tiến độ vào các sổ 01 - 05 tương ứng."
     )
     
     raw_report = st.text_area(
@@ -1818,52 +1796,136 @@ elif choice == "🤖 Trợ lý AI Thông minh":
                     st.success("🤖 Phân tích AI hoàn tất!")
                     st.json(parsed_json)
                     
-                    ma_bsc_matched = parsed_json.get("ma_bsc")
-                    week_index = parsed_json.get("week_index")
-                    week_kq = parsed_json.get("week_kq")
-                    week_danh_gia = parsed_json.get("week_danh_gia")
-                    bu_info = parsed_json.get("bu_tien_do")
-                    
-                    if not ma_bsc_matched:
-                        st.warning("⚠️ Không tìm thấy Mã BSC phù hợp tương ứng trong báo cáo này.")
+                    actions = parsed_json.get("actions", [])
+                    if not actions:
+                        st.info("🤖 Không tìm thấy hành động đồng bộ dữ liệu nào phù hợp từ báo cáo thô.")
                     else:
                         conn = database.get_connection()
                         cursor = conn.cursor()
                         
-                        # 1. Update Master Table weekly fields
-                        if week_index and week_index in [1, 2, 3, 4]:
-                            kq_col = f"T{week_index}_KQ"
-                            dg_col = f"T{week_index}_Danh_gia"
+                        for act in actions:
+                            a_type = act.get("type")
+                            ma_bsc_matched = act.get("ma_bsc")
                             
-                            cursor.execute(f"""
-                                UPDATE master_bang_tonghop 
-                                SET {kq_col} = ?, {dg_col} = ? 
-                                WHERE Ma_BSC = ?
-                            """, (week_kq, week_danh_gia, ma_bsc_matched))
-                            st.write(f"✅ Đã tự động cập nhật kết quả tuần {week_index} vào dòng Master.")
-                            
-                        # 2. Insert into 05_Bu_tien_do
-                        if bu_info:
-                            cursor.execute("SELECT Hang_muc FROM master_bang_tonghop WHERE Ma_BSC = ?", (ma_bsc_matched,))
-                            res_h = cursor.fetchone()
-                            h_muc_name = res_h[0] if res_h else "Hạng mục thi công"
-                            
-                            today_str = datetime.date.today().strftime('%Y-%m-%d')
-                            
-                            cursor.execute("""
-                                INSERT INTO bu_tien_do (Ma_BSC, Hang_muc, Ngay_phat_hien, Muc_cham_ngay, Nguyen_nhan, Phuong_an, TT_Trien_khai)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            """, (
-                                ma_bsc_matched, 
-                                h_muc_name, 
-                                today_str, 
-                                bu_info.get("muc_cham_ngay", 5.0), 
-                                bu_info.get("nguyen_nhan"), 
-                                bu_info.get("giai_phap"), 
-                                "Đang thực hiện"
-                            ))
-                            st.write("✅ Đã tự động thêm 1 dòng phương án bù tiến độ (Sổ 05) ở trạng thái 'Đang thực hiện'.")
-                            
+                            # Skip if Ma_BSC is not found
+                            if ma_bsc_matched:
+                                # Verify project exists
+                                cursor.execute("SELECT Hang_muc FROM master_bang_tonghop WHERE Ma_BSC = ?", (ma_bsc_matched,))
+                                res_p = cursor.fetchone()
+                                if not res_p:
+                                    st.warning(f"⚠️ Mã BSC '{ma_bsc_matched}' không tồn tại trong Bảng Tổng hợp Master. Bỏ qua hành động này.")
+                                    continue
+                                hang_muc_matched = res_p[0]
+                                
+                                if a_type == "update_master_progress":
+                                    week_index = act.get("week_index")
+                                    week_kq = act.get("week_kq")
+                                    week_danh_gia = act.get("week_danh_gia")
+                                    if week_index in [1, 2, 3, 4]:
+                                        kq_col = f"T{week_index}_KQ"
+                                        dg_col = f"T{week_index}_Danh_gia"
+                                        cursor.execute(f"""
+                                            UPDATE master_bang_tonghop 
+                                            SET {kq_col} = ?, {dg_col} = ? 
+                                            WHERE Ma_BSC = ?
+                                        """, (week_kq, week_danh_gia, ma_bsc_matched))
+                                        st.write(f"✅ Đã tự động cập nhật tiến độ Tuần {week_index} của dự án '{hang_muc_matched}' ({ma_bsc_matched}) đạt {week_kq*100:.1f}%.")
+                                
+                                elif a_type == "insert_hso_tienkc":
+                                    cursor.execute("""
+                                        INSERT INTO hso_tienkc (Ma_BSC, Hang_muc, Loai_ho_so, Ten_san_pham, Link_luu_tru, Ngay_HT, Nguoi_lap, Nguoi_duyet, TT_duyet)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    """, (
+                                        ma_bsc_matched, hang_muc_matched,
+                                        act.get("loai_ho_so", "HSTKTC"),
+                                        act.get("ten_san_pham", "Tài liệu tự động từ AI"),
+                                        act.get("link_luu_tru"),
+                                        act.get("nguoi_lap", "AI Assistant"),
+                                        act.get("nguoi_duyet"),
+                                        act.get("tt_duyet", "Đã duyệt")
+                                    ))
+                                    st.write(f"✅ Đã tự động thêm Hồ sơ mới: '{act.get('ten_san_pham')}' cho dự án '{hang_muc_matched}'.")
+                                
+                                elif a_type == "insert_kh_thang_tuan":
+                                    cursor.execute("""
+                                        INSERT INTO kh_thang_tuan (Ma_BSC, Hang_muc, Thang, Loai_tai_lieu, Noi_dung_chinh, Dat_YCKT_CDT, Link_tai_lieu, TT_lap, TT_duyet, Nguoi_lap, Nguoi_duyet, Ngay_duyet)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    """, (
+                                        ma_bsc_matched, hang_muc_matched,
+                                        act.get("thang", "06/2026"),
+                                        act.get("loai_tai_lieu", "Biện pháp thi công"),
+                                        act.get("noi_dung_chinh", "Tài liệu tự động từ AI"),
+                                        act.get("dat_yckt_cdt", "Có"),
+                                        act.get("link_tai_lieu"),
+                                        act.get("tt_lap", "Đã lập"),
+                                        act.get("tt_duyet", "Đã duyệt"),
+                                        act.get("nguoi_lap", "AI Assistant"),
+                                        act.get("nguoi_duyet"),
+                                        datetime.date.today().strftime('%Y-%m-%d')
+                                    ))
+                                    st.write(f"✅ Đã tự động lập Kế hoạch đệ trình: '{act.get('noi_dung_chinh')}' cho dự án '{hang_muc_matched}'.")
+                                
+                                elif a_type == "insert_phat_sinh":
+                                    cursor.execute("""
+                                        INSERT INTO phat_sinh (Ma_PS, Ma_BSC, Hang_muc, Ngay_PS, Loai, Mo_ta, Nguyen_nhan, De_xuat_xu_ly, Gia_tri_phat_sinh, Anh_huong_TD, Link_ho_so, TT_Phe_duyet, Nguoi_duyet)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    """, (
+                                        act.get("ma_ps", f"PS.AI.{datetime.date.today().strftime('%m%d%H%M')}"),
+                                        ma_bsc_matched, hang_muc_matched,
+                                        datetime.date.today().strftime('%Y-%m-%d'),
+                                        act.get("loai", "Khác"),
+                                        act.get("mo_ta"),
+                                        act.get("nguyen_nhan"),
+                                        act.get("de_xuat_xu_ly"),
+                                        act.get("gia_tri_phat_sinh", 0.0),
+                                        act.get("anh_huong_td", 0),
+                                        act.get("link_ho_so"),
+                                        act.get("tt_phe_duyet", "Chờ duyệt"),
+                                        act.get("nguoi_duyet")
+                                    ))
+                                    st.write(f"✅ Đã tự động báo cáo Phát sinh: '{act.get('ma_ps')}' trị giá {act.get('gia_tri_phat_sinh', 0.0)} tỷ cho dự án '{hang_muc_matched}'.")
+                                
+                                elif a_type == "insert_cu_dac_thu":
+                                    cursor.execute("""
+                                        INSERT INTO cu_dac_thu (Ma_YC, Ma_BSC, Hang_muc, Ngay_YC, Loai_YC, Vat_tu_thiet_bi, Noi_dung_yeu_cau, KL, DVT, Gia_tri_phat_sinh, Trong_Ngoai_HDCU, Link_ho_so, TT_Phe_duyet, Nguoi_duyet)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    """, (
+                                        act.get("ma_yc", f"YC.AI.{datetime.date.today().strftime('%m%d%H%M')}"),
+                                        ma_bsc_matched, hang_muc_matched,
+                                        datetime.date.today().strftime('%Y-%m-%d'),
+                                        act.get("loai_yc", "Đột xuất"),
+                                        act.get("vat_tu_thiet_bi", "Vật tư"),
+                                        act.get("noi_dung_yeu_cau"),
+                                        act.get("kl", 1.0),
+                                        act.get("dvt", "Bộ"),
+                                        act.get("gia_tri_phat_sinh", 0.0),
+                                        act.get("trong_ngoai_hdcu", "Ngoài HĐCU"),
+                                        act.get("link_ho_so"),
+                                        act.get("tt_phe_duyet", "Chờ duyệt"),
+                                        act.get("nguoi_duyet")
+                                    ))
+                                    st.write(f"✅ Đã tự động lập yêu cầu Cung ứng đặc thù: '{act.get('vat_tu_thiet_bi')}' cho dự án '{hang_muc_matched}'.")
+                                
+                                elif a_type == "insert_bu_tien_do":
+                                    cursor.execute("""
+                                        INSERT INTO bu_tien_do (Ma_BSC, Hang_muc, Ngay_phat_hien, Muc_cham_ngay, Nguyen_nhan, Phuong_an, Chi_tiet_giai_phap, Moc_cam_ket_HT, Link_phuong_an, TT_duyet, Nguoi_duyet, KQ_thuc_hien_bu, TT_Trien_khai)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    """, (
+                                        ma_bsc_matched, hang_muc_matched,
+                                        datetime.date.today().strftime('%Y-%m-%d'),
+                                        act.get("muc_cham_ngay", 5.0),
+                                        act.get("nguyen_nhan"),
+                                        act.get("phuong_an", "Giải pháp bù tiến độ"),
+                                        act.get("chi_tiet_giai_phap"),
+                                        act.get("moc_cam_ket_ht"),
+                                        act.get("link_phuong_an"),
+                                        act.get("tt_duyet", "Chờ duyệt"),
+                                        act.get("nguoi_duyet"),
+                                        act.get("kq_thuc_hien_bu"),
+                                        act.get("tt_trien_khai", "Đang thực hiện")
+                                    ))
+                                    st.write(f"✅ Đã tự động thiết lập Phương án bù tiến độ (Sổ 05) cho dự án '{hang_muc_matched}' ở trạng thái '{act.get('tt_trien_khai', 'Đang thực hiện')}'.")
+                        
                         conn.commit()
                         conn.close()
                         st.success("🎉 Hệ thống đã được đồng bộ dữ liệu tự động thành công!")
