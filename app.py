@@ -318,26 +318,26 @@ def render_dataframe_html(df, column_config, key_suffix=""):
             width: 100%;
             border-collapse: collapse;
             font-family: 'Inter', sans-serif;
-            font-size: 0.8rem;
+            font-size: 0.775rem;
             color: #334155;
             table-layout: fixed;
         }
         .styled-table th {
             background-color: #f8fafc !important; /* Premium light slate grey background */
             color: #475569 !important; /* Soft slate text */
-            font-weight: 600;
+            font-weight: 700;
             text-align: left;
-            padding: 12px 14px;
+            padding: 8px 10px;
             position: sticky;
             top: 0;
             z-index: 10;
             border-bottom: 2px solid #e2e8f0;
-            font-size: 0.8rem;
+            font-size: 0.725rem;
             text-transform: uppercase;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.02em;
             word-wrap: break-word;
             white-space: normal;
-            line-height: 1.3;
+            line-height: 1.25;
         }
         /* Sticky header border bottom fix when scrolling */
         .styled-table th::after {
@@ -349,12 +349,12 @@ def render_dataframe_html(df, column_config, key_suffix=""):
             border-bottom: 2px solid #e2e8f0;
         }
         .styled-table td {
-            padding: 10px 14px;
+            padding: 8px 10px;
             border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
             word-wrap: break-word;
             white-space: normal;
-            line-height: 1.4;
+            line-height: 1.35;
             color: #334155;
         }
         .styled-table tr:hover {
@@ -920,26 +920,26 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 width: 100%;
                 border-collapse: collapse;
                 font-family: 'Inter', sans-serif;
-                font-size: 0.8rem;
+                font-size: 0.775rem;
                 color: #334155;
                 table-layout: fixed;
             }
             .master-table th {
                 background-color: #f8fafc !important; /* Premium light slate grey background */
                 color: #475569 !important; /* Soft slate text */
-                font-weight: 600;
+                font-weight: 700;
                 text-align: left;
-                padding: 12px 14px;
+                padding: 8px 10px;
                 position: sticky;
                 top: 0;
                 z-index: 10;
                 border-bottom: 2px solid #e2e8f0;
-                font-size: 0.8rem;
+                font-size: 0.725rem;
                 text-transform: uppercase;
-                letter-spacing: 0.03em;
+                letter-spacing: 0.02em;
                 word-wrap: break-word;
                 white-space: normal;
-                line-height: 1.3;
+                line-height: 1.25;
             }
             /* Sticky header border bottom fix when scrolling */
             .master-table th::after {
@@ -951,12 +951,12 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 border-bottom: 2px solid #e2e8f0;
             }
             .master-table td {
-                padding: 10px 14px;
+                padding: 8px 10px;
                 border-bottom: 1px solid #f1f5f9;
                 vertical-align: middle;
                 word-wrap: break-word;
                 white-space: normal;
-                line-height: 1.4;
+                line-height: 1.35;
                 color: #334155;
             }
             .master-table tr:hover {
@@ -1779,26 +1779,26 @@ elif choice == "👥 Quản lý Nhân sự":
                 width: 100%;
                 border-collapse: collapse;
                 font-family: 'Inter', sans-serif;
-                font-size: 0.8rem;
+                font-size: 0.775rem;
                 color: #334155;
                 table-layout: fixed;
             }
             .ns-table th {
                 background-color: #f8fafc !important;
                 color: #475569 !important;
-                font-weight: 600;
+                font-weight: 700;
                 text-align: left;
-                padding: 12px 14px;
+                padding: 8px 10px;
                 position: sticky;
                 top: 0;
                 z-index: 10;
                 border-bottom: 2px solid #e2e8f0;
-                font-size: 0.8rem;
+                font-size: 0.725rem;
                 text-transform: uppercase;
-                letter-spacing: 0.03em;
+                letter-spacing: 0.02em;
                 word-wrap: break-word;
                 white-space: normal;
-                line-height: 1.3;
+                line-height: 1.25;
             }
             .ns-table th::after {
                 content: '';
@@ -1809,12 +1809,12 @@ elif choice == "👥 Quản lý Nhân sự":
                 border-bottom: 2px solid #e2e8f0;
             }
             .ns-table td {
-                padding: 12px 14px;
+                padding: 8px 10px;
                 border-bottom: 1px solid #f1f5f9;
                 vertical-align: middle;
                 word-wrap: break-word;
                 white-space: normal;
-                line-height: 1.4;
+                line-height: 1.35;
             }
             .ns-table tr:hover {
                 background-color: #f8fafc !important;
