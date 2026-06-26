@@ -998,6 +998,13 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
 
     # Dynamic Tabs for grouped views - MATCHING THE RED HIGHLIGHT IN IMAGES AND UX SMOOTHNESS
     st.write("### 📑 Bộ lọc các cột theo chức năng kiểm soát")
+    
+    st.segmented_control(
+        "CẤP ĐỘ HIỂN THỊ:",
+        options=["Cấp công trình", "Cấp chi tiết"],
+        default="Cấp chi tiết",
+        key="global_display_level"
+    )
     tab_labels = [
         "🔴 A. Đầu vào CĐT",
         "🚚 B. Cung ứng & Hợp đồng",
@@ -1113,6 +1120,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     projects_sorted = build_parent_child_rows(projects)
 
     def render_project_grid(proj_list, cols_to_show, key_suffix=""):
+        display_level = st.session_state.get('global_display_level', 'Cấp chi tiết')
         col_widths_map = {
             "a": ["4%", "10%", "8%", "20%", "8%", "9%", "9%", "8%", "9%", "5%", "5%", "5%"],
             "b": ["4%", "10%", "9%", "25%", "10%", "8%", "10%", "8%", "8%", "8%"],
@@ -1277,8 +1285,9 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 tr_class = 'class="wbs-row-style"'
                 tr_attrs = ""
             else:
+                initial_style = 'style="display: none;"' if display_level == "Cấp công trình" else ""
                 tr_class = f'class="child-row-{base_pkg}-{key_suffix}"'
-                tr_attrs = f'data-parent="{base_pkg}"'
+                tr_attrs = f'data-parent="{base_pkg}" {initial_style}'
                 
             html.append(f'<tr {tr_class} {tr_attrs}>')
             
@@ -1289,7 +1298,8 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                     val = ""
                 elif col_key == "Hang_muc_formatted":
                     if is_wbs:
-                        val = f'<span id="btn-{p["TT"]}-{key_suffix}" class="toggle-btn" onclick="togglePackage(\'{p["TT"]}\', \'{key_suffix}\')">−</span>' + p['Hang_muc']
+                        btn_symbol = "+" if display_level == "Cấp công trình" else "−"
+                        val = f'<span id="btn-{p["TT"]}-{key_suffix}" class="toggle-btn" onclick="togglePackage(\'{p["TT"]}\', \'{key_suffix}\')">{btn_symbol}</span>' + p['Hang_muc']
                     else:
                         name_formatted = format_wbs_name(p['Hang_muc'], p['TT'])
                         leading_spaces = len(name_formatted) - len(name_formatted.lstrip(' '))
