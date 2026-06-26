@@ -302,6 +302,7 @@ def seed_from_excel(conn, excel_file=None):
     # 1. Seed MASTER_BANG_TONGHOP
     df_master = pd.read_excel(excel_file, sheet_name='BANG TONG HOP', header=None)
     # The actual data starts from Row 6 (index 5)
+    current_pl = None
     for idx in range(5, len(df_master)):
         row = df_master.iloc[idx].values
         # Break if row is empty
@@ -312,9 +313,16 @@ def seed_from_excel(conn, excel_file=None):
         ma_bsc = clean_str(row[1])
         goi_thau = clean_str(row[2])
         
-        # Keep only rows where Goi_thau (PL) starts with 'PL' (case-insensitive)
+        # Track current PL package
+        if goi_thau and goi_thau.upper().startswith('PL'):
+            current_pl = goi_thau
+            
+        # Inherit current PL if row Goi_thau doesn't start with PL (or is empty)
         if not goi_thau or not goi_thau.upper().startswith('PL'):
-            continue
+            if current_pl:
+                goi_thau = current_pl
+            else:
+                continue
         nhom_ct = clean_str(row[3])
         hang_muc = clean_str(row[4])
         phu_trach = clean_str(row[5])
