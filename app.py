@@ -123,24 +123,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Sidebar ---
-st.sidebar.markdown("# 🖥️ HỆ THỐNG KIỂM SOÁT")
-st.sidebar.markdown("### Closed-Loop Procurement & Construction")
-st.sidebar.divider()
-
-# API Key handling
-api_key_env = os.environ.get("GEMINI_API_KEY", "")
-api_key_input = st.sidebar.text_input(
-    "🔑 Google Gemini API Key",
-    type="password",
-    value=api_key_env,
-    help="Nhập API Key của bạn để sử dụng Trợ lý AI và Cố vấn Rủi ro."
-)
-if api_key_input:
-    st.session_state['gemini_api_key'] = api_key_input
-else:
-    st.session_state['gemini_api_key'] = api_key_env
-
 # --- Người dùng hiện tại & Phân quyền ---
 def load_users():
     try:
@@ -154,42 +136,105 @@ def load_users():
         print(f"Error loading users: {e}")
         return []
 
-users_list = load_users()
-default_user_idx = 0
-for idx, u in enumerate(users_list):
-    if u['Ho_Ten'] == "Hồ Nghĩa Chất":
-        default_user_idx = idx
-        break
-
-if users_list:
-    selected_user = st.sidebar.selectbox(
-        "👤 Người dùng hiện tại:",
-        options=users_list,
-        format_func=lambda x: f"{x['Ho_Ten']} ({x['Chuc_Vu']})",
-        index=default_user_idx
-    )
-    st.session_state['current_user'] = selected_user
+# --- Kiểm tra Đăng nhập ---
+if 'current_user' not in st.session_state or st.session_state['current_user'] is None:
+    # Render Login Page
+    st.sidebar.markdown("# 🖥️ HỆ THỐNG KIỂM SOÁT")
+    st.sidebar.markdown("### Closed-Loop Procurement & Construction")
+    st.sidebar.divider()
+    st.sidebar.info("🔑 Vui lòng đăng nhập ở màn hình chính để tiếp tục.")
     
-    # Hiển thị thông tin phân quyền hiện tại trong sidebar
-    is_admin = selected_user.get('Chuc_Vu') == 'Admin' or selected_user.get('Vai_Tro') == 'admin2'
-    if is_admin:
-        st.sidebar.info("🔓 **Quyền hạn:** Toàn quyền (Admin)")
-    else:
-        perms = []
-        if selected_user.get('Them_HD') == 1: perms.append("Thêm")
-        if selected_user.get('Sua') == 1: perms.append("Sửa")
-        if selected_user.get('Xoa_HD') == 1: perms.append("Xóa")
-        perms_str = ", ".join(perms) if perms else "Chỉ xem"
-        st.sidebar.info(f"🔒 **Quyền hạn:** {perms_str}")
+    # Main area login card
+    c_left, c_mid, c_right = st.columns([1, 2, 1])
+    with c_mid:
+        st.markdown("<br><br><br>", unsafe_allow_html=True)
+        # Stylized card
+        st.markdown("""
+        <div style="text-align: center; margin-bottom: 20px;">
+            <span style="font-size: 3rem;">🖥️</span>
+            <h2 style="margin-top: 10px; color: #1e293b; font-family: 'Outfit', sans-serif;">HỆ THỐNG KIỂM SOÁT KHÉP KÍN</h2>
+            <p style="color: #64748b; font-size: 0.9rem;">Vòng đời Gói thầu thi công & Tư vấn giải pháp AI</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        with st.container(border=True):
+            st.markdown("<h4 style='text-align: center; margin-top: 0; color: #0f172a;'>🔐 ĐĂNG NHẬP</h4>", unsafe_allow_html=True)
+            
+            users_list = load_users()
+            if users_list:
+                selected_user_login = st.selectbox(
+                    "👤 Chọn tài khoản nhân sự:",
+                    options=users_list,
+                    format_func=lambda x: f"{x['Ho_Ten']} ({x['Chuc_Vu']})"
+                )
+                
+                pwd_input = st.text_input("🔑 Nhập Mã nhân viên (Mật khẩu):", type="password", placeholder="Ví dụ: 38, 58, 80...")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("🚀 ĐĂNG NHẬP", use_container_width=True, type="primary"):
+                    if pwd_input and pwd_input.strip() == str(selected_user_login.get('Ma_NV')).strip():
+                        st.session_state['current_user'] = selected_user_login
+                        st.success("🎉 Đăng nhập thành công! Đang tải hệ thống...")
+                        st.rerun()
+                    else:
+                        st.error("❌ Mã nhân viên (mật khẩu) không đúng. Vui lòng kiểm tra lại.")
+            else:
+                st.error("⚠️ Không thể tải danh sách nhân viên từ cơ sở dữ liệu.")
+                
+        st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 0.75rem; margin-top: 30px;'>© 2026 Phòng Kinh tế Kế hoạch BQLDA</p>", unsafe_allow_html=True)
+    st.stop()
+
+# --- Khi đã Đăng nhập thành công ---
+curr_user = st.session_state['current_user']
+is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2')
+
+# Sidebar layout when logged in
+st.sidebar.markdown("# 🖥️ HỆ THỐNG KIỂM SOÁT")
+st.sidebar.markdown("### Closed-Loop Procurement & Construction")
+st.sidebar.divider()
+
+# Show user info
+st.sidebar.success(f"👤 Xin chào, **{curr_user['Ho_Ten']}**!")
+if is_admin:
+    st.sidebar.info("🔓 **Quyền hạn:** Toàn quyền (Admin)")
 else:
-    st.sidebar.warning("⚠️ Không thể tải danh sách nhân sự.")
+    perms = []
+    if curr_user.get('Them_HD') == 1: perms.append("Thêm")
+    if curr_user.get('Sua') == 1: perms.append("Sửa")
+    if curr_user.get('Xoa_HD') == 1: perms.append("Xóa")
+    perms_str = ", ".join(perms) if perms else "Chỉ xem"
+    st.sidebar.info(f"🔒 **Quyền hạn:** {perms_str}")
+
+# ONLY display Gemini API Key if the user is Admin (Chuc_Vu == 'Admin' or Vai_Tro == 'admin2')
+if is_admin:
+    api_key_env = os.environ.get("GEMINI_API_KEY", "")
+    api_key_input = st.sidebar.text_input(
+        "🔑 Google Gemini API Key",
+        type="password",
+        value=st.session_state.get('gemini_api_key', api_key_env),
+        help="Nhập API Key của bạn để sử dụng Trợ lý AI và Cố vấn Rủi ro."
+    )
+    if api_key_input:
+        st.session_state['gemini_api_key'] = api_key_input
+    else:
+        st.session_state['gemini_api_key'] = api_key_env
+else:
+    # Set the key silently from the environment variable if not admin
+    st.session_state['gemini_api_key'] = os.environ.get("GEMINI_API_KEY", "")
+
+# Logout button
+if st.sidebar.button("🚪 Đăng xuất", type="secondary", use_container_width=True):
     st.session_state['current_user'] = None
+    st.session_state['gemini_api_key'] = None
+    st.rerun()
+
+st.sidebar.divider()
 
 def check_permission(permission_type):
-    curr_user = st.session_state.get('current_user')
+    # curr_user is already loaded above
     if not curr_user:
         return False
-    if curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2':
+    if is_admin:
         return True
     return curr_user.get(permission_type) == 1
 
