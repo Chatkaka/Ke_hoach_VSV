@@ -286,7 +286,9 @@ def init_db(force_reseed=False):
 
     conn.close()
 
-def seed_from_excel(conn):
+def seed_from_excel(conn, excel_file=None):
+    if excel_file is None:
+        excel_file = EXCEL_PATH
     cursor = conn.cursor()
 
     # Clear existing data to avoid duplicates on forced reseed
@@ -298,7 +300,7 @@ def seed_from_excel(conn):
     cursor.execute("DELETE FROM bu_tien_do")
 
     # 1. Seed MASTER_BANG_TONGHOP
-    df_master = pd.read_excel(EXCEL_PATH, sheet_name='BANG TONG HOP', header=None)
+    df_master = pd.read_excel(excel_file, sheet_name='BANG TONG HOP', header=None)
     # The actual data starts from Row 6 (index 5)
     for idx in range(5, len(df_master)):
         row = df_master.iloc[idx].values
@@ -371,7 +373,7 @@ def seed_from_excel(conn):
         ))
 
     # 2. Seed 01_HSo TienKC
-    df_01 = pd.read_excel(EXCEL_PATH, sheet_name='01_HSo TienKC', header=None)
+    df_01 = pd.read_excel(excel_file, sheet_name='01_HSo TienKC', header=None)
     for idx in range(2, len(df_01)):
         row = df_01.iloc[idx].values
         if len(row) < 10 or pd.isna(row[1]):
@@ -382,7 +384,7 @@ def seed_from_excel(conn):
         """, (clean_str(row[1]), clean_str(row[2]), clean_str(row[3]), clean_str(row[4]), clean_str(row[5]), clean_date(row[6]), clean_str(row[7]), clean_str(row[8]), clean_str(row[9])))
 
     # 3. Seed 02_KH Thang_Tuan
-    df_02 = pd.read_excel(EXCEL_PATH, sheet_name='02_KH Thang_Tuan', header=None)
+    df_02 = pd.read_excel(excel_file, sheet_name='02_KH Thang_Tuan', header=None)
     for idx in range(2, len(df_02)):
         row = df_02.iloc[idx].values
         if len(row) < 13 or pd.isna(row[1]):
@@ -393,7 +395,7 @@ def seed_from_excel(conn):
         """, (clean_str(row[1]), clean_str(row[2]), clean_str(row[3]), clean_str(row[4]), clean_str(row[5]), clean_str(row[6]), clean_str(row[7]), clean_str(row[8]), clean_str(row[9]), clean_str(row[10]), clean_str(row[11]), clean_date(row[12])))
 
     # 4. Seed 03_Phat sinh
-    df_03 = pd.read_excel(EXCEL_PATH, sheet_name='03_Phat sinh', header=None)
+    df_03 = pd.read_excel(excel_file, sheet_name='03_Phat sinh', header=None)
     for idx in range(2, len(df_03)):
         row = df_03.iloc[idx].values
         if len(row) < 15 or pd.isna(row[2]):
@@ -404,7 +406,7 @@ def seed_from_excel(conn):
         """, (clean_str(row[1]), clean_str(row[2]), clean_str(row[3]), clean_date(row[4]), clean_str(row[5]), clean_str(row[6]), clean_str(row[7]), clean_str(row[8]), clean_float(row[9]), clean_float(row[10]), clean_str(row[11]), clean_str(row[12]), clean_str(row[13]), clean_date(row[14]), clean_str(row[15]) if len(row)>15 else None, clean_str(row[16]) if len(row)>16 else None))
 
     # 5. Seed 04_CU dac thu
-    df_04 = pd.read_excel(EXCEL_PATH, sheet_name='04_CU dac thu', header=None)
+    df_04 = pd.read_excel(excel_file, sheet_name='04_CU dac thu', header=None)
     for idx in range(2, len(df_04)):
         row = df_04.iloc[idx].values
         if len(row) < 15 or pd.isna(row[2]):
@@ -415,7 +417,7 @@ def seed_from_excel(conn):
         """, (clean_str(row[1]), clean_str(row[2]), clean_str(row[3]), clean_date(row[4]), clean_str(row[5]), clean_str(row[6]), clean_str(row[7]), clean_float(row[8]), clean_str(row[9]), clean_float(row[10]), clean_str(row[11]), clean_str(row[12]), clean_str(row[13]), clean_str(row[14]), clean_date(row[15]) if len(row)>15 else None, clean_str(row[16]) if len(row)>16 else None, clean_str(row[17]) if len(row)>17 else None))
 
     # 6. Seed 05_Bu tien do
-    df_05 = pd.read_excel(EXCEL_PATH, sheet_name='05_Bu tien do', header=None)
+    df_05 = pd.read_excel(excel_file, sheet_name='05_Bu tien do', header=None)
     for idx in range(2, len(df_05)):
         row = df_05.iloc[idx].values
         if len(row) < 14 or pd.isna(row[1]):
