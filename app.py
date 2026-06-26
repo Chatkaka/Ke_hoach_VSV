@@ -247,9 +247,11 @@ menu_options = [
     "⚠️ 03. Quản lý Phát sinh",
     "🚚 04. Cung ứng Đặc thù",
     "🚀 05. Bù Tiến độ",
-    "🤖 Trợ lý AI Thông minh",
-    "👥 Quản lý Nhân sự"
+    "🤖 Trợ lý AI Thông minh"
 ]
+if is_admin:
+    menu_options.append("👥 Quản lý Nhân sự")
+
 choice = st.sidebar.radio("📌 Phân hệ chức năng", menu_options)
 
 st.sidebar.divider()
@@ -912,8 +914,9 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     with st.expander("📥 Nhập dữ liệu từ file Excel (Import)"):
         st.write("Tải lên file Excel để cập nhật toàn bộ cơ sở dữ liệu. Lưu ý: Thao tác này sẽ xóa sạch dữ liệu cũ và cập nhật lại theo file mới.")
         curr_user = st.session_state.get('current_user') or {}
-        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2')
-        is_ktkh_qltk = (curr_user.get('Vai_Tro') in ('KTKH', 'QLTK'))
+        role = curr_user.get('Vai_Tro')
+        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2')
+        is_ktkh_qltk = (role in ('KTKH', 'QLTK'))
         has_import_perm = is_admin or is_ktkh_qltk or check_permission('Them_HD')
         if not has_import_perm:
             st.warning("⚠️ Bạn không có quyền nhập dữ liệu từ Excel.")
@@ -940,38 +943,39 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     # Add new item
     with st.expander("➕ Thêm mới Hạng mục công việc"):
         with st.form("add_project_form"):
+            curr_user = st.session_state.get('current_user') or {}
+            role = curr_user.get('Vai_Tro')
+            is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2')
+            has_add_perm = is_admin or (check_permission('Them_HD') and role in ('KTKH', 'QLTK'))
+
             c1, c2, c3 = st.columns(3)
             with c1:
-                new_tt = st.text_input("Mã TT (Ví dụ: 3, 2.1, 2.2.1)")
-                new_ma_bsc = st.text_input("Mã BSC *")
+                new_tt = st.text_input("Mã TT (Ví dụ: 3, 2.1, 2.2.1)", disabled=not has_add_perm)
+                new_ma_bsc = st.text_input("Mã BSC *", disabled=not has_add_perm)
                 
                 # Searchable dropdown for Goi_thau
                 gts = load_goi_thau_options()
-                selected_gt = st.selectbox("Gói thầu (PL)", gts + ["- Khác (Nhập mới) -"], index=gts.index("PL10") if "PL10" in gts else 0)
+                selected_gt = st.selectbox("Gói thầu (PL)", gts + ["- Khác (Nhập mới) -"], index=gts.index("PL10") if "PL10" in gts else 0, disabled=not has_add_perm)
                 if selected_gt == "- Khác (Nhập mới) -":
                     new_goi_thau = st.text_input("Nhập tên Gói thầu mới *")
                 else:
                     new_goi_thau = selected_gt
             with c2:
-                new_nhom_ct = st.selectbox("Nhóm công trình", ["Hạ tầng kỹ thuật", "Xây dựng dân dụng", "Công trình phục vụ KD"])
-                new_hang_muc = st.text_input("Tên Hạng mục / Công việc *")
+                new_nhom_ct = st.selectbox("Nhóm công trình", ["Hạ tầng kỹ thuật", "Xây dựng dân dụng", "Công trình phục vụ KD"], disabled=not has_add_perm)
+                new_hang_muc = st.text_input("Tên Hạng mục / Công việc *", disabled=not has_add_perm)
                 
                 # Searchable dropdown for Phu_trach
                 pts = load_personnel_options()
-                selected_pt = st.selectbox("Kỹ sư Phụ trách", pts + ["- Khác (Nhập mới) -"])
+                selected_pt = st.selectbox("Kỹ sư Phụ trách", pts + ["- Khác (Nhập mới) -"], disabled=not has_add_perm)
                 if selected_pt == "- Khác (Nhập mới) -":
                     new_phu_trach = st.text_input("Nhập tên Kỹ sư Phụ trách mới *")
                 else:
                     new_phu_trach = selected_pt
             with c3:
-                new_ngan_sach = st.number_input("Ngân sách phê duyệt (tỷ)", min_value=0.0, step=0.1)
-                new_ngay_bd = st.date_input("Ngày bắt đầu (Yêu cầu CĐT)", value=None)
-                new_ngay_kt = st.date_input("Ngày kết thúc (Yêu cầu CĐT)", value=None)
+                new_ngan_sach = st.number_input("Ngân sách phê duyệt (tỷ)", min_value=0.0, step=0.1, disabled=not (is_admin or role == 'BQLDA'))
+                new_ngay_bd = st.date_input("Ngày bắt đầu (Yêu cầu CĐT)", value=None, disabled=not has_add_perm)
+                new_ngay_kt = st.date_input("Ngày kết thúc (Yêu cầu CĐT)", value=None, disabled=not has_add_perm)
                 
-            curr_user = st.session_state.get('current_user') or {}
-            is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2')
-            is_ktkh_qltk = (curr_user.get('Vai_Tro') in ('KTKH', 'QLTK'))
-            has_add_perm = is_admin or is_ktkh_qltk or check_permission('Them_HD')
             if not has_add_perm:
                 st.warning("⚠️ Bạn không có quyền thêm mới hạng mục.")
             submitted = st.form_submit_button("Lưu Hạng mục", disabled=not has_add_perm)
@@ -995,6 +999,18 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                     conn.close()
                     st.success("Đã thêm hạng mục mới thành công!")
                     st.rerun()
+
+    # Edit item section
+    with st.expander("✏️ Cập nhật chi tiết Hạng mục công việc"):
+        edit_proj_options = [f"{p['Ma_BSC']} - {p['Hang_muc']}" for p in projects if p['Ma_BSC']]
+        selected_proj_to_edit = st.selectbox("Chọn Hạng mục cần chỉnh sửa:", ["-- Chọn Hạng mục --"] + edit_proj_options)
+        if selected_proj_to_edit != "-- Chọn Hạng mục --":
+            bsc_code = selected_proj_to_edit.split(" - ")[0]
+            matched_proj = next((p for p in projects if p['Ma_BSC'] == bsc_code), None)
+            if matched_proj:
+                st.session_state['show_edit_form'] = True
+                st.session_state['edit_project_id'] = matched_proj['id']
+                st.info(f"Đã chọn: {matched_proj['Hang_muc']}. Vui lòng cuộn xuống dưới cùng để cập nhật chi tiết.")
 
     # Dynamic Tabs for grouped views - MATCHING THE RED HIGHLIGHT IN IMAGES AND UX SMOOTHNESS
     st.write("### 📑 Bộ lọc các cột theo chức năng kiểm soát")
@@ -1510,35 +1526,41 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     if st.session_state.get('show_edit_form') and st.session_state.get('edit_project_id'):
         p_id = st.session_state['edit_project_id']
         proj = business_logic.get_project_by_id(p_id)
-        
+
         curr_user = st.session_state.get('current_user') or {}
-        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2')
-        is_ktkh_qltk = (curr_user.get('Vai_Tro') in ('KTKH', 'QLTK'))
+        role = curr_user.get('Vai_Tro')
+        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2')
         has_sua = (curr_user.get('Sua') == 1)
-        
-        can_edit_dau_vao = is_admin or is_ktkh_qltk
-        can_edit_procurement_and_progress = is_admin or (has_sua and not is_ktkh_qltk)
-        
+
+        # Enforce role-based access control (RBAC) per section
+        can_edit_A = is_admin or (has_sua and role in ('KTKH', 'QLTK'))
+        can_edit_B = is_admin or (has_sua and role == 'KTKH')
+        can_edit_D = is_admin or (has_sua and role == 'BQLDA')
+        can_edit_E = is_admin or (has_sua and role == 'BQLDA')
+        can_edit_G = is_admin or (has_sua and role == 'BQLDA')
+
+        has_edit_perm = can_edit_A or can_edit_B or can_edit_D or can_edit_E or can_edit_G
+
         st.divider()
         st.markdown(f"### ✏️ Biểu mẫu Cập nhật chi tiết: **{proj['Hang_muc']}**")
-        
+
         with st.form("edit_project_detail_form"):
             # Sub-tabs inside the edit form for cleanliness
             etab1, etab2, etab3 = st.tabs(["📋 Định danh & Đầu vào CĐT", "🚚 Cung ứng & Hợp đồng", "🚀 Tiến độ Thi công"])
-            
+
             with etab1:
                 col_e1, col_e2 = st.columns(2)
                 with col_e1:
-                    e_tt = st.text_input("Mã TT", value=proj['TT'] or "", disabled=not can_edit_dau_vao)
-                    e_ma_bsc = st.text_input("Mã BSC", value=proj['Ma_BSC'] or "", disabled=not can_edit_dau_vao)
+                    e_tt = st.text_input("Mã TT", value=proj['TT'] or "", disabled=not can_edit_A)
+                    e_ma_bsc = st.text_input("Mã BSC", value=proj['Ma_BSC'] or "", disabled=not can_edit_A)
                     # Searchable dropdown for Goi_thau
                     gts = load_goi_thau_options()
                     curr_gt = proj['Goi_thau'] or ""
                     gts_options = gts + ["- Khác (Nhập mới) -"]
                     if curr_gt not in gts:
                         gts_options = [curr_gt] + gts_options
-                    
-                    selected_gt = st.selectbox("Gói thầu", gts_options, index=gts_options.index(curr_gt) if curr_gt in gts_options else 0, disabled=not can_edit_dau_vao)
+
+                    selected_gt = st.selectbox("Gói thầu", gts_options, index=gts_options.index(curr_gt) if curr_gt in gts_options else 0, disabled=not can_edit_A)
                     if selected_gt == "- Khác (Nhập mới) -":
                         e_goi_thau = st.text_input("Nhập tên Gói thầu mới *")
                     else:
@@ -1550,33 +1572,33 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                     pts_options = pts + ["- Khác (Nhập mới) -"]
                     if curr_pt not in pts:
                         pts_options = [curr_pt] + pts_options
-                    
-                    selected_pt = st.selectbox("Người phụ trách", pts_options, index=pts_options.index(curr_pt) if curr_pt in pts_options else 0, disabled=not can_edit_dau_vao)
+
+                    selected_pt = st.selectbox("Người phụ trách", pts_options, index=pts_options.index(curr_pt) if curr_pt in pts_options else 0, disabled=not can_edit_A)
                     if selected_pt == "- Khác (Nhập mới) -":
                         e_phu_trach = st.text_input("Nhập tên Người phụ trách mới *")
                     else:
                         e_phu_trach = selected_pt
                 with col_e2:
-                    e_ngay_bd = st.date_input("Ngày BĐ (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_BD_YC'], '%Y-%m-%d').date() if proj['Ngay_BD_YC'] else None, disabled=not can_edit_dau_vao)
-                    e_ngay_kt = st.date_input("Ngày KT (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_KT_YC'], '%Y-%m-%d').date() if proj['Ngay_KT_YC'] else None, disabled=not can_edit_dau_vao)
-                    e_ngan_sach = st.number_input("Ngân sách (tỷ)", min_value=0.0, value=proj['Ngan_sach'] or 0.0, step=0.1, disabled=not can_edit_dau_vao)
-                    
+                    e_ngay_bd = st.date_input("Ngày BĐ (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_BD_YC'], '%Y-%m-%d').date() if proj['Ngay_BD_YC'] else None, disabled=not can_edit_A)
+                    e_ngay_kt = st.date_input("Ngày KT (YC CĐT)", value=datetime.datetime.strptime(proj['Ngay_KT_YC'], '%Y-%m-%d').date() if proj['Ngay_KT_YC'] else None, disabled=not can_edit_A)
+                    e_ngan_sach = st.number_input("Ngân sách (tỷ)", min_value=0.0, value=proj['Ngan_sach'] or 0.0, step=0.1, disabled=not can_edit_E)
+
             with etab2:
                 col_e3, col_e4 = st.columns(2)
                 with col_e3:
                     st.write("**Hồ sơ Thiết kế & Khảo sát:**")
-                    e_kh_hstk = st.date_input("KH phát hành HSTKTC", value=datetime.datetime.strptime(proj['KH_phat_hanh_HSTKTC'], '%Y-%m-%d').date() if proj['KH_phat_hanh_HSTKTC'] else None, disabled=not can_edit_dau_vao)
-                    e_tt_hstk = st.selectbox("TT HSTKTC", ["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"], index=["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"].index(proj['TT_HSTKTC'] or "Chưa có TK"), disabled=not can_edit_dau_vao)
-                    e_tt_specs = st.selectbox("TT SPECS", ["Chưa có", "Đang lập", "Đã cấp"], index=["Chưa có", "Đang lập", "Đã cấp"].index(proj['TT_SPECS'] or "Chưa có"), disabled=not can_edit_dau_vao)
-                    e_tt_boq = st.selectbox("TT BOQ/KL", ["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"], index=["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"].index(proj['TT_BOQ'] or "Chưa bàn giao"), disabled=not can_edit_dau_vao)
+                    e_kh_hstk = st.date_input("KH phát hành HSTKTC", value=datetime.datetime.strptime(proj['KH_phat_hanh_HSTKTC'], '%Y-%m-%d').date() if proj['KH_phat_hanh_HSTKTC'] else None, disabled=not can_edit_A)
+                    e_tt_hstk = st.selectbox("TT HSTKTC", ["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"], index=["Chưa có TK", "Đang TK", "Điều chỉnh TK", "Đã phát hành", "Hoàn thiện"].index(proj['TT_HSTKTC'] or "Chưa có TK"), disabled=not can_edit_A)
+                    e_tt_specs = st.selectbox("TT SPECS", ["Chưa có", "Đang lập", "Đã cấp"], index=["Chưa có", "Đang lập", "Đã cấp"].index(proj['TT_SPECS'] or "Chưa có"), disabled=not can_edit_A)
+                    e_tt_boq = st.selectbox("TT BOQ/KL", ["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"], index=["Chưa bàn giao", "Đang lập", "Điều chỉnh", "Đã bàn giao"].index(proj['TT_BOQ'] or "Chưa bàn giao"), disabled=not can_edit_A)
                 with col_e4:
                     st.write("**Hợp đồng Cung ứng:**")
-                    e_kh_lcnt = st.date_input("KH LCNT", value=datetime.datetime.strptime(proj['KH_LCNT'], '%Y-%m-%d').date() if proj['KH_LCNT'] else None, disabled=not can_edit_procurement_and_progress)
-                    e_tt_lcnt = st.selectbox("TT LCNT", ["Chưa LCNT", "Đang mời thầu", "Đang đánh giá", "Đã có KQ", "Đã ký"], index=["Chưa LCNT", "Đang mời thầu", "Đang đánh giá", "Đã có KQ", "Đã ký"].index(proj['TT_LCNT'] or "Chưa LCNT"), disabled=not can_edit_procurement_and_progress)
-                    e_kh_hdcu = st.date_input("KH Ký HĐCU", value=datetime.datetime.strptime(proj['KH_Ky_HDCU'], '%Y-%m-%d').date() if proj['KH_Ky_HDCU'] else None, disabled=not can_edit_procurement_and_progress)
-                    e_tt_hdcu = st.selectbox("TT Ký HĐCU", ["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"], index=["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"].index(proj['TT_Ky_HDCU'] or "Chưa CU"), disabled=not can_edit_procurement_and_progress)
-                    e_val_hdcu = st.number_input("Giá trị HĐ Cung ứng (tỷ)", min_value=0.0, value=proj['Gia_tri_HDCU'] or 0.0, step=0.1, disabled=not can_edit_procurement_and_progress)
- 
+                    e_kh_lcnt = st.date_input("KH LCNT", value=datetime.datetime.strptime(proj['KH_LCNT'], '%Y-%m-%d').date() if proj['KH_LCNT'] else None, disabled=not can_edit_B)
+                    e_tt_lcnt = st.selectbox("TT LCNT", ["Chưa LCNT", "Đang mời thầu", "Đang đánh giá", "Đã có KQ", "Đã ký"], index=["Chưa LCNT", "Đang mời thầu", "Đang đánh giá", "Đã có KQ", "Đã ký"].index(proj['TT_LCNT'] or "Chưa LCNT"), disabled=not can_edit_B)
+                    e_kh_hdcu = st.date_input("KH Ký HĐCU", value=datetime.datetime.strptime(proj['KH_Ky_HDCU'], '%Y-%m-%d').date() if proj['KH_Ky_HDCU'] else None, disabled=not can_edit_B)
+                    e_tt_hdcu = st.selectbox("TT Ký HĐCU", ["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"], index=["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"].index(proj['TT_Ky_HDCU'] or "Chưa CU"), disabled=not can_edit_B)
+                    e_val_hdcu = st.number_input("Giá trị HĐ Cung ứng (tỷ)", min_value=0.0, value=proj['Gia_tri_HDCU'] or 0.0, step=0.1, disabled=not can_edit_E)
+
             with etab3:
                 col_e5, col_e6 = st.columns(2)
                 with col_e5:
@@ -1659,7 +1681,7 @@ elif choice == "📂 01. Hồ sơ Tiền khởi công":
                     h_nguoi_duyet = sel_duyet
                 h_tt = st.selectbox("Trạng thái duyệt", ['Chưa lập', 'Đang lập', 'Chờ duyệt', 'Đã duyệt', 'Từ chối'], index=3)
                 
-            has_add_perm = check_permission('Them_HD')
+            has_add_perm = is_admin or (check_permission('Them_HD') and curr_user.get('Vai_Tro') in ('KTKH', 'QLTK'))
             if not has_add_perm:
                 st.warning("⚠️ Bạn không có quyền thêm mới hồ sơ.")
             submitted_hso = st.form_submit_button("Lưu Hồ sơ", disabled=not has_add_perm)
@@ -1738,7 +1760,7 @@ elif choice == "📅 02. Kế hoạch Tháng/Tuần":
                     kh_nguoi_duyet = sel_duyet
                 kh_ngay_duyet = st.date_input("Ngày phê duyệt", value=datetime.date.today())
                 
-            has_add_perm = check_permission('Them_HD')
+            has_add_perm = is_admin or (check_permission('Them_HD') and curr_user.get('Vai_Tro') in ('KTKH', 'BQLDA'))
             if not has_add_perm:
                 st.warning("⚠️ Bạn không có quyền thêm mới kế hoạch.")
             submitted_kh = st.form_submit_button("Lưu Kế hoạch", disabled=not has_add_perm)
@@ -1814,7 +1836,7 @@ elif choice == "⚠️ 03. Quản lý Phát sinh":
                 else:
                     ps_nguoi_duyet = sel_duyet
                 
-            has_add_perm = check_permission('Them_HD')
+            has_add_perm = is_admin or (check_permission('Them_HD') and curr_user.get('Vai_Tro') == 'BQLDA')
             if not has_add_perm:
                 st.warning("⚠️ Bạn không có quyền báo cáo phát sinh.")
             submitted_ps = st.form_submit_button("Lưu Đệ trình", disabled=not has_add_perm)
@@ -1902,7 +1924,7 @@ elif choice == "🚚 04. Cung ứng Đặc thù":
                 else:
                     cu_nguoi_duyet = sel_duyet
                 
-            has_add_perm = check_permission('Them_HD')
+            has_add_perm = is_admin or (check_permission('Them_HD') and curr_user.get('Vai_Tro') == 'KTKH')
             if not has_add_perm:
                 st.warning("⚠️ Bạn không có quyền đệ trình yêu cầu cung ứng.")
             submitted_cu = st.form_submit_button("Lưu Yêu cầu", disabled=not has_add_perm)
@@ -1983,7 +2005,7 @@ elif choice == "🚀 05. Bù Tiến độ":
                 bu_kq = st.text_input("Đánh giá kết quả thực hiện bù")
                 bu_tt_trienkhai = st.selectbox("Trạng thái triển khai", ['Đang thực hiện', 'Đã hoàn thành', 'Đóng'])
                 
-            has_add_perm = check_permission('Them_HD')
+            has_add_perm = is_admin or (check_permission('Them_HD') and curr_user.get('Vai_Tro') == 'BQLDA')
             if not has_add_perm:
                 st.warning("⚠️ Bạn không có quyền thiết lập phương án bù tiến độ.")
             submitted_bu = st.form_submit_button("Lưu Phương án", disabled=not has_add_perm)
@@ -2203,6 +2225,9 @@ elif choice == "🤖 Trợ lý AI Thông minh":
 
 # --- 9. PERSONNEL & PERMISSIONS MANAGEMENT ---
 elif choice == "👥 Quản lý Nhân sự":
+    if not is_admin:
+        st.error("⚠️ Bạn không có quyền truy cập chức năng này.")
+        st.stop()
     st.write("## 👥 Quản lý Danh sách Nhân sự & Phân quyền")
     
     conn = database.get_connection()
