@@ -949,8 +949,60 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         "Khởi công": st.column_config.TextColumn("Khởi công", width=130),
     }
 
-    # Sort projects for a single consolidated view (keeping headers fixed)
-    projects_sorted = sorted(projects, key=lambda x: (x['Nhom_CT'] or "", x['TT'] or ""))
+    # Sort and group projects by Gói thầu (PL) in a parent-child structure
+    def build_parent_child_rows(proj_list):
+        import re
+        def parse_tt(tt_val):
+            if not tt_val:
+                return (999999,)
+            parts = re.split(r'[.-]', str(tt_val))
+            res = []
+            for p_part in parts:
+                p_part = p_part.strip()
+                try:
+                    res.append(float(p_part))
+                except ValueError:
+                    res.append(p_part)
+            return tuple(res)
+        
+        # Sort projects by TT numerically/hierarchically
+        sorted_projs = sorted(proj_list, key=lambda x: parse_tt(x.get('TT')))
+        
+        hierarchical = []
+        seen_packages = set()
+        for p_item in sorted_projs:
+            pkg = p_item.get('Goi_thau') or "Khác"
+            nhom = p_item.get('Nhom_CT') or ""
+            if pkg not in seen_packages:
+                seen_packages.add(pkg)
+                # Create a parent row representing the package (PL)
+                parent_row = {
+                    "id": f"parent_{pkg}",
+                    "TT": pkg,
+                    "Nhom_CT": nhom,
+                    "Ma_BSC": None,
+                    "Goi_thau": pkg,
+                    "Hang_muc": f"Gói thầu {pkg}" + (f" ({nhom})" if nhom else ""),
+                    "Phu_trach": "",
+                    "Ngay_BD_YC": "",
+                    "Ngay_KT_YC": "",
+                    "Ngan_sach": None,
+                    "is_parent": True,
+                }
+                # Initialize other columns to avoid errors
+                for key_col in p_item.keys():
+                    if key_col not in parent_row:
+                        parent_row[key_col] = None
+                hierarchical.append(parent_row)
+            
+            # Create a child row
+            child_row = dict(p_item)
+            child_row["is_child"] = True
+            child_row["Hang_muc"] = f"    {p_item['Hang_muc']}" # Indent name with spaces
+            hierarchical.append(child_row)
+        return hierarchical
+
+    projects_sorted = build_parent_child_rows(projects)
 
     def render_project_grid(proj_list, cols_to_show, key_suffix=""):
         col_widths_map = {
@@ -1085,15 +1137,15 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         
         html.append('<tbody>')
         for p in proj_list:
-            is_wbs = False
-            tr_class = ""
+            is_wbs = p.get('is_parent', False)
+            tr_class = 'class="wbs-row-style"' if is_wbs else ""
             html.append(f'<tr {tr_class}>')
             
             for col_key, col_name in cols_to_show.items():
                 val = ""
                 
                 if col_key == "Ma_BSC" and not p['Ma_BSC']:
-                    val = "--- WBS ---"
+                    val = ""
                 elif col_key == "Hang_muc_formatted":
                     name_formatted = format_wbs_name(p['Hang_muc'], p['TT'])
                     leading_spaces = len(name_formatted) - len(name_formatted.lstrip(' '))
@@ -1128,14 +1180,17 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         else:
                             val = '<span class="master-badge master-badge-green">🟢 XANH (Bình thường)</span>'
                 elif col_key in ("KH_Thang", "KQ_Thang"):
-                    pct = p[col_key] * 100 if p[col_key] is not None else 0.0
-                    bar_color = "#22c55e" if col_key == "KQ_Thang" else "#3b82f6"
-                    val = f"""
-                    <span class="html-progress-text">{pct:.1f}%</span>
-                    <div class="html-progress-container">
-                        <div class="html-progress-fill" style="width: {min(pct, 100.0)}%; background-color: {bar_color};"></div>
-                    </div>
-                    """
+                    if is_wbs:
+                        val = ""
+                    else:
+                        pct = p[col_key] * 100 if p[col_key] is not None else 0.0
+                        bar_color = "#22c55e" if col_key == "KQ_Thang" else "#3b82f6"
+                        val = f"""
+                        <span class="html-progress-text">{pct:.1f}%</span>
+                        <div class="html-progress-container">
+                            <div class="html-progress-fill" style="width: {min(pct, 100.0)}%; background-color: {bar_color};"></div>
+                        </div>
+                        """
                 elif col_key in ("T1_KQ", "T2_KQ", "T3_KQ", "T4_KQ", "Percent_HDCU_NS"):
                     pct = p[col_key] * 100 if p[col_key] is not None else None
                     if pct is not None:
@@ -1288,7 +1343,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
 
     cols = st.columns(4)
     with cols[0]:
-        p_to_edit = st.selectbox("Chọn hạng mục chỉnh sửa tiến trình", [f"{p['id']} - {p['Hang_muc']}" for p in projects_sorted], key="sel_edit_unified")
+        p_to_edit = st.selectbox("Chọn hạng mục chỉnh sửa tiến trình", [f"{p['id']} - {p['Hang_muc'].strip()}" for p in projects_sorted if not p.get('is_parent')], key="sel_edit_unified")
     
     with cols[1]:
         if st.button("✏️ Cập nhật tiến trình", key="btn_edit_unified", disabled=not has_edit_perm):
