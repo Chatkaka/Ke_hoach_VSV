@@ -3,8 +3,9 @@ import pandas as pd
 import datetime
 import os
 
-DB_PATH = 'project_control.db'
-EXCEL_PATH = 'TDG_Masterfile BQLDA_v1_20260623.xlsx'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.normpath(os.path.join(BASE_DIR, 'project_control.db'))
+EXCEL_PATH = os.path.normpath(os.path.join(BASE_DIR, 'TDG_Masterfile BQLDA_v1_20260623.xlsx'))
 
 def clean_date(val):
     if pd.isna(val) or val is None:
@@ -78,6 +79,7 @@ def check_and_add_columns(cursor):
                     print(f"Error migrating column {col_name} in {table_name}: {e}")
 
 def init_db(force_reseed=False):
+    db_exists = os.path.exists(DB_PATH)
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -254,23 +256,24 @@ def init_db(force_reseed=False):
     # Run Schema Self-Healing to add any missing columns in existing DB files
     check_and_add_columns(cursor)
 
-    # Seed personnel if table is empty
-    cursor.execute("SELECT COUNT(*) FROM nhan_su")
-    count_ns = cursor.fetchone()[0]
-    if count_ns == 0:
-        personnel_data = [
-            ("80", "Cao Thị An", "Phó phòng", "Trống", "caothian11@gmail.com", 0, 1, 0, 0, 0),
-            ("58", "Hoàng Văn Vượng", "CV QLCL", "User2", "hoangvuongdhv@gmail.com", 0, 1, 0, 1, 1),
-            ("38", "Hồ Nghĩa Chất", "Admin", "admin2", "Hochat.tayan@gmail.com", 1, 1, 1, 1, 1),
-            ("467", "Lê Thị Ngọc Hoa", "NV hỗ trợ", "Trống", "lengochoa289@gmail.com", 0, 0, 0, 0, 0),
-            ("364", "Lê Xuân Văn", "CV QLCL", "User2", "lexuanvankt@gmail.com", 0, 1, 0, 1, 1),
-            ("76", "Nguyễn Hoàng Kiên", "CV Vật tư", "Trống", "kienprotl4@gmail.com", 0, 0, 0, 0, 0),
-            ("312", "Nguyễn Thành Chung", "CV QLCL", "User2", "thanhchunglcc@gmail.com", 0, 1, 0, 1, 1)
-        ]
-        cursor.executemany("""
-            INSERT INTO nhan_su (Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, personnel_data)
+    # Seed personnel if database is brand new or forced reseed
+    if force_reseed or not db_exists:
+        cursor.execute("SELECT COUNT(*) FROM nhan_su")
+        count_ns = cursor.fetchone()[0]
+        if count_ns == 0:
+            personnel_data = [
+                ("80", "Cao Thị An", "Phó phòng", "Trống", "caothian11@gmail.com", 0, 1, 0, 0, 0),
+                ("58", "Hoàng Văn Vượng", "CV QLCL", "User2", "hoangvuongdhv@gmail.com", 0, 1, 0, 1, 1),
+                ("38", "Hồ Nghĩa Chất", "Admin", "admin2", "Hochat.tayan@gmail.com", 1, 1, 1, 1, 1),
+                ("467", "Lê Thị Ngọc Hoa", "NV hỗ trợ", "Trống", "lengochoa289@gmail.com", 0, 0, 0, 0, 0),
+                ("364", "Lê Xuân Văn", "CV QLCL", "User2", "lexuanvankt@gmail.com", 0, 1, 0, 1, 1),
+                ("76", "Nguyễn Hoàng Kiên", "CV Vật tư", "Trống", "kienprotl4@gmail.com", 0, 0, 0, 0, 0),
+                ("312", "Nguyễn Thành Chung", "CV QLCL", "User2", "thanhchunglcc@gmail.com", 0, 1, 0, 1, 1)
+            ]
+            cursor.executemany("""
+                INSERT INTO nhan_su (Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, personnel_data)
 
     conn.commit()
 
