@@ -1303,6 +1303,15 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 transform: scale(1.1);
                 box-shadow: 0 4px 8px rgba(59, 130, 246, 0.5);
             }
+            .wbs-level2-row {
+                background-color: #ffffff !important;
+            }
+            .wbs-level3-row {
+                background-color: #fafcfc !important;
+            }
+            .wbs-level3-row td {
+                color: #475569 !important;
+            }
         </style>
         """
         html.append(css)
@@ -1331,9 +1340,12 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 tr_attrs = ""
             else:
                 initial_style = 'style="display: none;"' if display_level == "Cấp công trình" else ""
-                tr_class = f'class="child-row-{base_pkg}-{key_suffix}"'
+                tt_str = str(p.get('TT') or '').strip()
+                if '.' in tt_str:
+                    tr_class = f'class="child-row-{base_pkg}-{key_suffix} wbs-level3-row"'
+                else:
+                    tr_class = f'class="child-row-{base_pkg}-{key_suffix} wbs-level2-row"'
                 tr_attrs = f'data-parent="{base_pkg}" {initial_style}'
-                
             html.append(f'<tr {tr_class} {tr_attrs}>')
             
             for col_key, col_name in cols_to_show.items():
@@ -1346,8 +1358,11 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         btn_symbol = "+" if display_level == "Cấp công trình" else "−"
                         val = f'<span id="btn-{p["TT"]}-{key_suffix}" class="toggle-btn" onclick="togglePackage(\'{p["TT"]}\', \'{key_suffix}\')">{btn_symbol}</span><b>{p["Hang_muc"]}</b>'
                     else:
-                        name_formatted = format_wbs_name(p['Hang_muc'], p['TT'])
-                        val = f'<span style="padding-left: 16px; color: #64748b; margin-right: 6px; font-weight: bold; font-size: 0.85rem;">↳</span><span style="color: #334155; font-weight: 500;">{name_formatted.lstrip(" ")}</span>'
+                        tt_str = str(p.get('TT') or '').strip()
+                        if '.' in tt_str:
+                            val = f'<span style="padding-left: 32px; color: #94a3b8; margin-right: 8px; font-weight: bold; font-size: 0.85rem;">↳</span><span style="color: #475569; font-weight: 500;">{p["Hang_muc"]}</span>'
+                        else:
+                            val = f'<span style="padding-left: 12px; color: #4f46e5; margin-right: 8px; font-weight: bold; font-size: 0.85rem;">↳</span><span style="color: #1e293b; font-weight: 700;">{p["Hang_muc"]}</span>'
                 elif col_key in ("DK1_HSKT", "DK2_HDCU", "DK3_KHTK"):
                     chk = "N/A" if is_wbs else ("✔" if p[col_key] else "✘")
                     if chk == "✔":
