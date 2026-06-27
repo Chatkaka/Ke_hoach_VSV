@@ -1397,26 +1397,26 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         html.append('</table>')
         html.append('</div>')
         
-        # Javascript client-side expand/collapse toggle
+        # Javascript client-side expand/collapse toggle via image error event hack for React/Streamlit execution compatibility
         js = """
-        <script>
-        if (typeof togglePackage !== 'function') {
+        <img src="x" onerror="
+        if (typeof window.togglePackage !== 'function') {
             window.togglePackage = function(pkgCode, suffix) {
                 var rows = document.querySelectorAll('.child-row-' + pkgCode + '-' + suffix);
                 var btn = document.getElementById('btn-' + pkgCode + '-' + suffix);
                 if (!rows || rows.length === 0) return;
-                
-                var isHidden = rows[0].style.display === 'none';
+
+                var isHidden = (rows[0].style.display === 'none' || window.getComputedStyle(rows[0]).display === 'none');
                 for (var i = 0; i < rows.length; i++) {
                     rows[i].style.display = isHidden ? '' : 'none';
                 }
-                
+
                 if (btn) {
                     btn.innerHTML = isHidden ? '−' : '+';
                 }
             };
         }
-        </script>
+        " style="display:none;">
         """
         html.append(js)
         
