@@ -62,6 +62,14 @@ def check_and_add_columns(cursor):
             "Xoa_HD": "INTEGER",
             "Sua_CDT_BD": "INTEGER",
             "Cap_Nhat_CDT": "INTEGER"
+        },
+        "audit_log": {
+            "timestamp": "TEXT",
+            "username": "TEXT",
+            "action_type": "TEXT",
+            "table_name": "TEXT",
+            "record_id": "TEXT",
+            "details": "TEXT"
         }
     }
     for table_name, cols in expected_schemas.items():
@@ -242,6 +250,19 @@ def init_db(force_reseed=False):
     CREATE TABLE IF NOT EXISTS sys_config (
         key TEXT PRIMARY KEY,
         value TEXT
+    )
+    """)
+
+    # Create audit_log Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT,
+        username TEXT,
+        action_type TEXT,
+        table_name TEXT,
+        record_id TEXT,
+        details TEXT
     )
     """)
 
@@ -465,3 +486,19 @@ def seed_from_excel(conn, excel_file=None):
 
 if __name__ == '__main__':
     init_db(force_reseed=True)
+
+
+def log_action(username, action_type, table_name, record_id, details):
+    try:
+        import datetime
+        conn = get_connection()
+        cursor = conn.cursor()
+        now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute("""
+            INSERT INTO audit_log (timestamp, username, action_type, table_name, record_id, details)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (now_str, username, action_type, table_name, str(record_id), details))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error writing audit log: {e}")
