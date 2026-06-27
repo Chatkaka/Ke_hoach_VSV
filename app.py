@@ -1154,126 +1154,154 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         <style>
             .table-container {
                 width: 100%;
-                max-height: 550px; /* Constrain height to force vertical scrollbar inside container */
-                overflow-y: auto; /* Vertically scrollable */
-                overflow-x: hidden; /* Avoid horizontal scrolling */
+                max-height: 550px;
+                overflow-y: auto;
+                overflow-x: auto;
                 border-radius: 12px;
-                box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -2px rgba(0, 0, 0, 0.05);
-                border: 1px solid #e2e8f0;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+                border: 1px solid #cbd5e1;
                 margin-bottom: 2rem;
                 background: white;
             }
             .master-table {
                 width: 100%;
                 border-collapse: collapse;
-                font-family: 'Inter', sans-serif;
+                font-family: 'Outfit', 'Inter', sans-serif;
                 font-size: 0.775rem;
-                color: #334155;
+                color: #1e293b;
                 table-layout: fixed;
             }
             .master-table th {
-                background-color: #f8fafc !important; /* Premium light slate grey background */
-                color: #475569 !important; /* Soft slate text */
+                background-color: #1e293b !important;
+                color: #ffffff !important;
                 font-weight: 700;
-                text-align: left;
-                padding: 8px 10px;
+                text-align: center;
+                padding: 12px 10px;
                 position: sticky;
                 top: 0;
                 z-index: 10;
-                border-bottom: 2px solid #e2e8f0;
-                font-size: 0.725rem;
+                border: 1px solid #334155;
+                font-size: 0.75rem;
                 text-transform: uppercase;
-                letter-spacing: 0.02em;
+                letter-spacing: 0.03em;
                 word-wrap: break-word;
                 white-space: normal;
-                line-height: 1.25;
-            }
-            /* Sticky header border bottom fix when scrolling */
-            .master-table th::after {
-                content: '';
-                position: absolute;
-                left: 0;
-                bottom: 0;
-                width: 100%;
-                border-bottom: 2px solid #e2e8f0;
+                line-height: 1.3;
             }
             .master-table td {
-                padding: 8px 10px;
-                border-bottom: 1px solid #f1f5f9;
+                padding: 10px 12px;
+                border: 1px solid #cbd5e1;
                 vertical-align: middle;
                 word-wrap: break-word;
                 white-space: normal;
-                line-height: 1.35;
+                line-height: 1.4;
                 color: #334155;
             }
             .master-table tr:hover {
-                background-color: #f8fafc !important;
+                background-color: #f1f5f9 !important;
+                cursor: default;
             }
+            /* Styling for Parent Row */
             .master-table tr.wbs-row-style {
-                background-color: #f8fafc !important;
-                font-weight: bold;
-                color: #475569;
+                background-image: linear-gradient(to right, #f8fafc, #eff6ff) !important;
+                font-weight: 700;
+                color: #1e3a8a !important;
             }
             .master-table tr.wbs-row-style td {
-                font-style: italic;
-                border-bottom: 1px solid #e2e8f0;
+                border-bottom: 2px solid #93c5fd;
+                border-top: 2px solid #93c5fd;
+                color: #1e3a8a !important;
+                font-size: 0.8rem;
             }
-            .master-badge {
-                padding: 4px 8px;
-                border-radius: 6px;
-                font-size: 0.725rem;
+            
+            /* Column-specific styles */
+            .master-table td:first-child {
+                font-weight: 700;
+                color: #4f46e5;
+                background-color: #faf5ff;
+                text-align: center;
+            }
+            .master-table td.bsc-cell {
+                font-weight: 700;
+                color: #0d9488;
+                text-align: center;
+                background-color: #f0fdfa;
+            }
+            
+            .num-budget {
+                color: #0f766e;
+                font-weight: 700;
+                font-size: 0.8rem;
+            }
+            .date-cell {
+                color: #475569;
+                font-size: 0.75rem;
                 font-weight: 600;
+                text-align: center;
+                display: block;
+            }
+            
+            /* Badges styling */
+            .master-badge {
+                padding: 5px 10px;
+                border-radius: 20px;
+                font-size: 0.7rem;
+                font-weight: 700;
                 display: inline-block;
                 text-align: center;
                 line-height: 1.2;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             }
-            .master-badge-green { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-            .master-badge-red { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
-            .master-badge-yellow { background-color: #fefce8; color: #a16207; border: 1px solid #fef08a; }
-            .master-badge-orange { background-color: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
-            
+            .master-badge-green { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+            .master-badge-red { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+            .master-badge-yellow { background-color: #fefce8; color: #854d0e; border: 1px solid #fef08a; }
+            .master-badge-orange { background-color: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+
             /* Custom progress bar */
             .html-progress-container {
                 width: 100%;
-                background-color: #f1f5f9;
-                border-radius: 4px;
+                background-color: #e2e8f0;
+                border-radius: 10px;
                 overflow: hidden;
-                height: 6px;
-                margin-top: 4px;
-                border: 1px solid #e2e8f0;
+                height: 8px;
+                margin-top: 6px;
+                border: 1px solid #cbd5e1;
             }
             .html-progress-fill {
                 height: 100%;
-                border-radius: 4px;
+                border-radius: 10px;
             }
             .html-progress-text {
                 font-size: 0.725rem;
-                font-weight: 600;
-                color: #64748b;
+                font-weight: 700;
+                color: #475569;
             }
-            
+
             /* Toggle Button */
             .toggle-btn {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                width: 18px;
-                height: 18px;
-                border-radius: 4px;
-                background-color: #f1f5f9;
-                color: #475569;
-                border: 1px solid #e2e8f0;
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                background-color: #3b82f6;
+                color: #ffffff !important;
+                border: 1px solid #2563eb;
                 cursor: pointer;
-                font-weight: bold;
-                font-size: 0.85rem;
-                margin-right: 8px;
+                font-weight: 800;
+                font-size: 0.95rem;
+                margin-right: 10px;
                 user-select: none;
-                transition: all 0.2s;
+                box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+                transition: all 0.2s ease-in-out;
                 line-height: 1;
             }
             .toggle-btn:hover {
-                background-color: #e2e8f0;
-                color: #0f172a;
+                background-color: #1d4ed8;
+                border-color: #1e40af;
+                transform: scale(1.1);
+                box-shadow: 0 4px 8px rgba(59, 130, 246, 0.5);
             }
         </style>
         """
@@ -1316,11 +1344,10 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 elif col_key == "Hang_muc_formatted":
                     if is_wbs:
                         btn_symbol = "+" if display_level == "Cấp công trình" else "−"
-                        val = f'<span id="btn-{p["TT"]}-{key_suffix}" class="toggle-btn" onclick="togglePackage(\'{p["TT"]}\', \'{key_suffix}\')">{btn_symbol}</span>' + p['Hang_muc']
+                        val = f'<span id="btn-{p["TT"]}-{key_suffix}" class="toggle-btn" onclick="togglePackage(\'{p["TT"]}\', \'{key_suffix}\')">{btn_symbol}</span><b>{p["Hang_muc"]}</b>'
                     else:
                         name_formatted = format_wbs_name(p['Hang_muc'], p['TT'])
-                        leading_spaces = len(name_formatted) - len(name_formatted.lstrip(' '))
-                        val = "&nbsp;" * leading_spaces + name_formatted.lstrip(' ')
+                        val = f'<span style="padding-left: 16px; color: #64748b; margin-right: 6px; font-weight: bold; font-size: 0.85rem;">↳</span><span style="color: #334155; font-weight: 500;">{name_formatted.lstrip(" ")}</span>'
                 elif col_key in ("DK1_HSKT", "DK2_HDCU", "DK3_KHTK"):
                     chk = "N/A" if is_wbs else ("✔" if p[col_key] else "✘")
                     if chk == "✔":
@@ -1387,11 +1414,18 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         val = f'<span class="master-badge master-badge-yellow">{status_str}</span>'
                     else:
                         val = status_str
+                elif col_key.startswith("Ngay"):
+                    item = p[col_key]
+                    val = f'<span class="date-cell">{item}</span>' if item else ""
                 else:
                     item = p[col_key]
                     val = item if item is not None else ""
-                    
-                html.append(f'<td>{val}</td>')
+
+                td_class = ""
+                if col_key == "Ma_BSC" and not is_wbs and p['Ma_BSC']:
+                    td_class = ' class="bsc-cell"'
+
+                html.append(f'<td{td_class}>{val}</td>')
             html.append('</tr>')
             
         html.append('</tbody>')
@@ -2256,90 +2290,93 @@ elif choice == "👥 Quản lý Nhân sự":
         <style>
             .ns-container {
                 width: 100%;
-                overflow-x: hidden;
+                overflow-x: auto;
                 border-radius: 12px;
-                box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -2px rgba(0, 0, 0, 0.05);
-                border: 1px solid #e2e8f0;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+                border: 1px solid #cbd5e1;
                 margin-bottom: 2rem;
                 background: white;
             }
             .ns-table {
                 width: 100%;
                 border-collapse: collapse;
-                font-family: 'Inter', sans-serif;
+                font-family: 'Outfit', 'Inter', sans-serif;
                 font-size: 0.775rem;
-                color: #334155;
+                color: #1e293b;
                 table-layout: fixed;
             }
             .ns-table th {
-                background-color: #f8fafc !important;
-                color: #475569 !important;
+                background-color: #1e293b !important;
+                color: #ffffff !important;
                 font-weight: 700;
-                text-align: left;
-                padding: 8px 10px;
+                text-align: center;
+                padding: 10px 8px;
                 position: sticky;
                 top: 0;
                 z-index: 10;
-                border-bottom: 2px solid #e2e8f0;
-                font-size: 0.725rem;
+                border: 1px solid #334155;
+                font-size: 0.75rem;
                 text-transform: uppercase;
-                letter-spacing: 0.02em;
+                letter-spacing: 0.03em;
                 word-wrap: break-word;
                 white-space: normal;
-                line-height: 1.25;
-            }
-            .ns-table th::after {
-                content: '';
-                position: absolute;
-                left: 0;
-                bottom: 0;
-                width: 100%;
-                border-bottom: 2px solid #e2e8f0;
+                line-height: 1.3;
             }
             .ns-table td {
-                padding: 8px 10px;
-                border-bottom: 1px solid #f1f5f9;
+                padding: 10px 12px;
+                border: 1px solid #cbd5e1;
                 vertical-align: middle;
                 word-wrap: break-word;
                 white-space: normal;
-                line-height: 1.35;
+                line-height: 1.4;
+                color: #334155;
             }
             .ns-table tr:hover {
-                background-color: #f8fafc !important;
+                background-color: #f1f5f9 !important;
             }
             .ns-badge-co {
-                color: #15803d;
-                font-weight: 600;
+                color: #166534;
+                font-weight: 700;
                 display: inline-flex;
                 align-items: center;
                 gap: 4px;
+                background-color: #dcfce7;
+                border: 1px solid #bbf7d0;
+                padding: 4px 8px;
+                border-radius: 12px;
             }
             .ns-badge-khong {
-                color: #b91c1c;
-                font-weight: 600;
+                color: #991b1b;
+                font-weight: 700;
                 display: inline-flex;
                 align-items: center;
                 gap: 4px;
+                background-color: #fee2e2;
+                border: 1px solid #fca5a5;
+                padding: 4px 8px;
+                border-radius: 12px;
             }
             .ns-btn-sua {
                 background-color: #fef9c3;
                 color: #854d0e;
                 border: 1px solid #fef08a;
                 padding: 4px 8px;
-                border-radius: 4px;
+                border-radius: 6px;
                 font-size: 0.725rem;
-                font-weight: 600;
+                font-weight: 700;
                 display: inline-block;
+                cursor: pointer;
             }
             .ns-btn-xoa {
                 background-color: #fee2e2;
                 color: #b91c1c;
                 border: 1px solid #fca5a5;
                 padding: 4px 8px;
-                border-radius: 4px;
+                border-radius: 6px;
                 font-size: 0.725rem;
-                font-weight: 600;
+                font-weight: 700;
                 display: inline-block;
+                cursor: pointer;
             }
         </style>
         """
