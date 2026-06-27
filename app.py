@@ -983,8 +983,8 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
             if submitted:
                 if not has_add_perm:
                     st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
-                elif not new_hang_muc or not new_ma_bsc:
-                    st.error("Vui lòng nhập đầy đủ Mã BSC và Tên Hạng mục / Công việc.")
+                elif not new_hang_muc:
+                    st.error("Vui lòng nhập Tên Hạng mục / Công việc.")
                 else:
                     conn = database.get_connection()
                     cursor = conn.cursor()
@@ -1003,15 +1003,41 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
 
     # Edit item section
     with st.expander("✏️ Cập nhật chi tiết Hạng mục công việc"):
-        edit_proj_options = [f"{p['Ma_BSC']} - {p['Hang_muc']}" for p in projects if p['Ma_BSC']]
+        edit_proj_options = [f"{p['id']} - [{p['TT']}] {p['Hang_muc']}" for p in projects]
         selected_proj_to_edit = st.selectbox("Chọn Hạng mục cần chỉnh sửa:", ["-- Chọn Hạng mục --"] + edit_proj_options)
         if selected_proj_to_edit != "-- Chọn Hạng mục --":
-            bsc_code = selected_proj_to_edit.split(" - ")[0]
-            matched_proj = next((p for p in projects if p['Ma_BSC'] == bsc_code), None)
+            p_id = int(selected_proj_to_edit.split(" - ")[0])
+            matched_proj = next((p for p in projects if p['id'] == p_id), None)
             if matched_proj:
                 st.session_state['show_edit_form'] = True
                 st.session_state['edit_project_id'] = matched_proj['id']
                 st.info(f"Đã chọn: {matched_proj['Hang_muc']}. Vui lòng cuộn xuống dưới cùng để cập nhật chi tiết.")
+
+    # Delete item section
+    with st.expander("🗑️ Xóa Hạng mục công việc"):
+        del_proj_options = [f"{p['id']} - [{p['TT']}] {p['Hang_muc']}" for p in projects]
+        selected_proj_to_del = st.selectbox("Chọn Hạng mục cần xóa vĩnh viễn:", ["-- Chọn Hạng mục --"] + del_proj_options)
+        if selected_proj_to_del != "-- Chọn Hạng mục --":
+            p_id_del = int(selected_proj_to_del.split(" - ")[0])
+            matched_proj_del = next((p for p in projects if p['id'] == p_id_del), None)
+            if matched_proj_del:
+                curr_user = st.session_state.get('current_user') or {}
+                role = curr_user.get('Vai_Tro')
+                is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2' or curr_user.get('Ho_Ten') == 'Hồ Nghĩa Chất' or curr_user.get('Ma_NV') == '38')
+                has_delete_perm = is_admin or check_permission('Xoa_HD')
+                if not has_delete_perm:
+                    st.warning("⚠️ Bạn không có quyền xóa hạng mục.")
+                if st.button("❌ Xác nhận xóa vĩnh viễn hạng mục này", key="btn_confirm_del_proj", type="primary", disabled=not has_delete_perm):
+                    if not has_delete_perm:
+                        st.error("⚠️ Bạn không có quyền thực hiện hành động này.")
+                    else:
+                        conn = database.get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM master_bang_tonghop WHERE id = ?", (p_id_del,))
+                        conn.commit()
+                        conn.close()
+                        st.success(f"Đã xóa thành công hạng mục '{matched_proj_del['Hang_muc']}'!")
+                        st.rerun()
 
     # Dynamic Tabs for grouped views - MATCHING THE RED HIGHLIGHT IN IMAGES AND UX SMOOTHNESS
     st.write("### 📑 Bộ lọc các cột theo chức năng kiểm soát")
