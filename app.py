@@ -1106,12 +1106,13 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
     tab_labels = [
         "🔴 A. Đầu vào CĐT",
         "🚚 B. Cung ứng & Hợp đồng",
+        "📅 C. Kế hoạch Triển khai",
         "⚡ D. Chốt chặn Khởi công",
         "💰 E. Ngân sách & Chi phí",
         "📊 G. Quản lý Thi công",
         "🏢 Tất cả dữ liệu"
     ]
-    t1, t2, t3, t4, t5, t6 = st.tabs(tab_labels)
+    t1, t2, t3, t4, t5, t6, t7 = st.tabs(tab_labels)
     
     # WBS Tree indent formatting
     def format_wbs_name(hang_muc, tt):
@@ -1674,8 +1675,22 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         }
         render_project_grid(projects_sorted, cols_b, "b")
 
-    # 3. TAB D: CHỐT CHẶN KHỞI CÔNG
+    # 3. TAB C: KẾ HOẠCH TRIỂN KHAI
     with t3:
+        cols_tab_c = {
+            "TT": "TT",
+            "Nhom_CT": "Nhóm công trình",
+            "Ma_BSC": "Mã BSC",
+            "Hang_muc_formatted": "Hạng mục / Công việc",
+            "KH_ky_PLHD": "KH Ký PLHĐ CĐT",
+            "TT_Ky_PLHD": "TT Ký PLHĐ CĐT",
+            "KH_PD_KHTK": "KH PD KHTK",
+            "TT_KHTK": "TT KHTK"
+        }
+        render_project_grid(projects_sorted, cols_tab_c, "tab_c")
+
+    # 4. TAB D: CHỐT CHẶN KHỞI CÔNG
+    with t4:
         cols_c = {
             "TT": "TT",
             "Nhom_CT": "Nhóm công trình",
@@ -1690,8 +1705,8 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         }
         render_project_grid(projects_sorted, cols_c, "c")
 
-    # 4. TAB E: NGÂN SÁCH & CHI PHÍ
-    with t4:
+    # 5. TAB E: NGÂN SÁCH & CHI PHÍ
+    with t5:
         cols_d = {
             "TT": "TT",
             "Nhom_CT": "Nhóm công trình",
@@ -1705,8 +1720,8 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         }
         render_project_grid(projects_sorted, cols_d, "d")
 
-    # 5. TAB G: QUẢN LÝ THI CÔNG
-    with t5:
+    # 6. TAB G: QUẢN LÝ THI CÔNG
+    with t6:
         cols_g = {
             "TT": "TT",
             "Nhom_CT": "Nhóm công trình",
@@ -1722,8 +1737,8 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         }
         render_project_grid(projects_sorted, cols_g, "g")
 
-    # 6. TAB ALL (TẤT CẢ DỮ LIỆU)
-    with t6:
+    # 7. TAB ALL (TẤT CẢ DỮ LIỆU)
+    with t7:
         cols_all = {
             "TT": "TT",
             "Nhom_CT": "Nhóm công trình",
@@ -1763,7 +1778,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
 
         with st.form("edit_project_detail_form"):
             # Sub-tabs inside the edit form for cleanliness
-            etab1, etab2, etab3 = st.tabs(["📋 Định danh & Đầu vào CĐT", "🚚 Cung ứng & Hợp đồng", "🚀 Tiến độ Thi công"])
+            etab1, etab2, etab2_c, etab3 = st.tabs(["📋 Định danh & Đầu vào CĐT", "🚚 Cung ứng & Hợp đồng", "📅 Kế hoạch Triển khai", "🚀 Tiến độ Thi công"])
 
             with etab1:
                 col_e1, col_e2 = st.columns(2)
@@ -1816,6 +1831,15 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                     e_tt_hdcu = st.selectbox("TT Ký HĐCU", ["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"], index=["Chưa CU", "Đang trình ký", "Đã CU", "Theo đợt TC"].index(proj['TT_Ky_HDCU'] or "Chưa CU"), disabled=not can_edit_B)
                     e_val_hdcu = st.number_input("Giá trị HĐ Cung ứng (tỷ)", min_value=0.0, value=proj['Gia_tri_HDCU'] or 0.0, step=0.1, disabled=not can_edit_E)
 
+            with etab2_c:
+                col_ec1, col_ec2 = st.columns(2)
+                with col_ec1:
+                    e_kh_ky_plhd = st.date_input("KH Ký PLHĐ CĐT", value=datetime.datetime.strptime(proj['KH_ky_PLHD'], '%Y-%m-%d').date() if proj['KH_ky_PLHD'] else None, disabled=not can_edit_A)
+                    e_tt_ky_plhd = st.selectbox("TT Ký PLHĐ CĐT", ["Chưa ký", "Đang trình ký", "Đã ký PLHĐ"], index=["Chưa ký", "Đang trình ký", "Đã ký PLHĐ"].index(proj['TT_Ky_PLHD'] or "Chưa ký"), disabled=not can_edit_A)
+                with col_ec2:
+                    e_kh_pd_khtk = st.date_input("KH PD KHTK", value=datetime.datetime.strptime(proj['KH_PD_KHTK'], '%Y-%m-%d').date() if proj['KH_PD_KHTK'] else None, disabled=not can_edit_A)
+                    e_tt_khtk = st.selectbox("TT KHTK (C)", ["Chưa trình", "Đang duyệt", "Đã duyệt"], index=["Chưa trình", "Đang duyệt", "Đã duyệt"].index(proj['TT_KHTK'] or "Chưa trình"), disabled=not can_edit_A)
+
             with etab3:
                 col_e5, col_e6 = st.columns(2)
                 with col_e5:
@@ -1847,18 +1871,23 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 kh_hdcu_str = e_kh_hdcu.strftime('%Y-%m-%d') if e_kh_hdcu else None
                 kc_str = e_ngay_kc.strftime('%Y-%m-%d') if e_ngay_kc else None
                 
+                kh_ky_plhd_str = e_kh_ky_plhd.strftime('%Y-%m-%d') if e_kh_ky_plhd else None
+                kh_pd_khtk_str = e_kh_pd_khtk.strftime('%Y-%m-%d') if e_kh_pd_khtk else None
+
                 cursor.execute("""
                     UPDATE master_bang_tonghop
                     SET TT = ?, Ma_BSC = ?, Goi_thau = ?, Phu_trach = ?, Ngay_BD_YC = ?, Ngay_KT_YC = ?, Ngan_sach = ?,
                         KH_phat_hanh_HSTKTC = ?, TT_HSTKTC = ?, TT_SPECS = ?, TT_BOQ = ?,
                         KH_LCNT = ?, TT_LCNT = ?, KH_Ky_HDCU = ?, TT_Ky_HDCU = ?, Gia_tri_HDCU = ?,
-                        Ngay_BD_Khoi_Cong = ?, TT_KHTK = ?, KH_Thang = ?, KQ_Thang = ?, Danh_gia_Thang = ?
+                        KH_ky_PLHD = ?, TT_Ky_PLHD = ?, KH_PD_KHTK = ?, TT_KHTK = ?,
+                        Ngay_BD_Khoi_Cong = ?, KH_Thang = ?, KQ_Thang = ?, Danh_gia_Thang = ?
                     WHERE id = ?
                 """, (
                     e_tt, e_ma_bsc, e_goi_thau, e_phu_trach, bd_str, kt_str, e_ngan_sach,
                     kh_hstk_str, e_tt_hstk, e_tt_specs, e_tt_boq,
                     kh_lcnt_str, e_tt_lcnt, kh_hdcu_str, e_tt_hdcu, e_val_hdcu,
-                    kc_str, e_tt_khtk, e_kh_thang, e_kq_thang, e_danh_gia, p_id
+                    kh_ky_plhd_str, e_tt_ky_plhd, kh_pd_khtk_str, e_tt_khtk,
+                    kc_str, e_kh_thang, e_kq_thang, e_danh_gia, p_id
                 ))
                 
                 conn.commit()
