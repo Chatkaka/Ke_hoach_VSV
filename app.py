@@ -186,7 +186,7 @@ if 'current_user' not in st.session_state or st.session_state['current_user'] is
 
 # --- Khi đã Đăng nhập thành công ---
 curr_user = st.session_state['current_user']
-is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2')
+is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2' or curr_user.get('Ho_Ten') == 'Hồ Nghĩa Chất' or curr_user.get('Ma_NV') == '38')
 
 # Sidebar layout when logged in
 st.sidebar.markdown("# 🖥️ HỆ THỐNG KIỂM SOÁT")
@@ -916,7 +916,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         st.write("Tải lên file Excel để cập nhật toàn bộ cơ sở dữ liệu. Lưu ý: Thao tác này sẽ xóa sạch dữ liệu cũ và cập nhật lại theo file mới.")
         curr_user = st.session_state.get('current_user') or {}
         role = curr_user.get('Vai_Tro')
-        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2')
+        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2' or curr_user.get('Ho_Ten') == 'Hồ Nghĩa Chất' or curr_user.get('Ma_NV') == '38')
         is_ktkh_qltk = (role in ('KTKH', 'QLTK'))
         has_import_perm = is_admin or is_ktkh_qltk or check_permission('Them_HD')
         if not has_import_perm:
@@ -946,7 +946,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         with st.form("add_project_form"):
             curr_user = st.session_state.get('current_user') or {}
             role = curr_user.get('Vai_Tro')
-            is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2')
+            is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2' or curr_user.get('Ho_Ten') == 'Hồ Nghĩa Chất' or curr_user.get('Ma_NV') == '38')
             has_add_perm = is_admin or (check_permission('Them_HD') and role in ('KTKH', 'QLTK'))
 
             c1, c2, c3 = st.columns(3)
@@ -1511,7 +1511,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
 
         curr_user = st.session_state.get('current_user') or {}
         role = curr_user.get('Vai_Tro')
-        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2')
+        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2' or curr_user.get('Ho_Ten') == 'Hồ Nghĩa Chất' or curr_user.get('Ma_NV') == '38')
         has_sua = (curr_user.get('Sua') == 1)
 
         # Enforce role-based access control (RBAC) per section
@@ -2403,16 +2403,14 @@ elif choice == "👥 Quản lý Nhân sự":
                     conn = database.get_connection()
                     cursor = conn.cursor()
                     cursor.execute("""
-                        INSERT INTO nhan_su (Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (add_ma, add_ten, add_chuc, add_vai, add_email, 
-                          1 if add_them_hd else 0, 1 if add_sua else 0, 1 if add_xoa_hd else 0, 
-                          1 if add_sua_cdt else 0, 1 if add_cap_nhat else 0))
+                        INSERT INTO nhan_su (Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Xem, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+                    """, (add_ma, add_ten, add_chuc, add_vai, add_email,
+                          1 if add_xem else 0, 1 if add_them else 0, 1 if add_sua else 0, 1 if add_xoa else 0))
                     conn.commit()
                     conn.close()
                     st.success("Thêm nhân sự mới thành công!")
                     st.rerun()
-                    
     # 3. Edit Personnel
     with st.expander("✏️ Chỉnh sửa thông tin & Phân quyền"):
         ns_list = [f"{row['id']} - {row['Ho_Ten']} (Mã NV: {row['Ma_NV']})" for idx, row in df_ns.iterrows()]
