@@ -188,6 +188,59 @@ if 'current_user' not in st.session_state or st.session_state['current_user'] is
 curr_user = st.session_state['current_user']
 is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == 'admin2' or curr_user.get('Ho_Ten') == 'Hồ Nghĩa Chất' or curr_user.get('Ma_NV') == '38')
 
+
+# --- Xử lý sửa ô trực tiếp (Inline Editing Hook) ---
+if st.query_params:
+    qp = st.query_params
+    if 'edit_row_id' in qp and 'edit_col' in qp:
+        try:
+            edit_id = int(qp['edit_row_id'])
+            edit_col = qp['edit_col']
+            new_val = qp.get('edit_val', '')
+            
+            db_col = edit_col
+            if db_col == 'Hang_muc_formatted':
+                db_col = 'Hang_muc'
+                
+            username = curr_user.get('Ho_Ten', 'Ẩn danh')
+            
+            conn = database.get_connection()
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT {db_col}, Hang_muc FROM master_bang_tonghop WHERE id = ?", (edit_id,))
+            row_info = cursor.fetchone()
+            
+            if row_info:
+                old_val = row_info[0]
+                hm_name = row_info[1]
+                
+                has_edit_perm = is_admin or (curr_user.get('Sua') == 1)
+                
+                if not has_edit_perm:
+                    st.error("⚠️ Bạn không có quyền chỉnh sửa dữ liệu.")
+                else:
+                    if db_col == 'Ngan_sach':
+                        try:
+                            val_float = float(new_val) if new_val else None
+                            cursor.execute("UPDATE master_bang_tonghop SET Ngan_sach = ? WHERE id = ?", (val_float, edit_id))
+                            old_disp = f"{old_val} tỷ" if old_val is not None else "Trống"
+                            new_disp = f"{val_float} tỷ" if val_float is not None else "Trống"
+                            database.log_action(username, "Sửa trực tiếp ô", "master_bang_tonghop", edit_id,
+                                                f"Thay đổi Ngân sách của hạng mục '{hm_name}' từ {old_disp} thành {new_disp}")
+                        except ValueError:
+                            pass
+                    else:
+                        cursor.execute(f"UPDATE master_bang_tonghop SET {db_col} = ? WHERE id = ?", (new_val, edit_id))
+                        old_disp = old_val if old_val is not None else "Trống"
+                        new_disp = new_val if new_val is not None else "Trống"
+                        database.log_action(username, "Sửa trực tiếp ô", "master_bang_tonghop", edit_id,
+                                            f"Thay đổi {db_col} của hạng mục '{hm_name}' từ '{old_disp}' thành '{new_disp}'")
+                    conn.commit()
+            conn.close()
+            
+            st.query_params.clear()
+            st.rerun()
+        except Exception as e:
+            st.error(f"Lỗi khi sửa đổi trực tiếp: {e}")
 # Sidebar layout when logged in
 st.sidebar.markdown("# 🖥️ HỆ THỐNG KIỂM SOÁT")
 st.sidebar.markdown("### Closed-Loop Procurement & Construction")
@@ -997,6 +1050,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (new_tt, new_ma_bsc, new_goi_thau, new_nhom_ct, new_hang_muc, new_phu_trach, bd_str, kt_str, new_ngan_sach))
                     conn.commit()
+                    database.log_action(curr_user.get('Ho_Ten', 'Ẩn danh'), "Thêm mới", "master_bang_tonghop", new_tt, f"Thêm hạng mục mới '{new_hang_muc}' (Mã BSC: {new_ma_bsc})")
                     conn.close()
                     st.success("Đã thêm hạng mục mới thành công!")
                     st.rerun()
@@ -1035,6 +1089,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         cursor = conn.cursor()
                         cursor.execute("DELETE FROM master_bang_tonghop WHERE id = ?", (p_id_del,))
                         conn.commit()
+                        database.log_action(curr_user.get('Ho_Ten', 'Ẩn danh'), "Xóa", "master_bang_tonghop", p_id_del, f"Xóa hạng mục '{matched_proj_del['Hang_muc']}' (Mã BSC: {matched_proj_del['Ma_BSC']})")
                         conn.close()
                         st.success(f"Đã xóa thành công hạng mục '{matched_proj_del['Hang_muc']}'!")
                         st.rerun()
@@ -1466,7 +1521,12 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 if col_key == "Ma_BSC" and not is_wbs and p['Ma_BSC']:
                     td_class = ' class="bsc-cell"'
 
-                html.append(f'<td{td_class}>{val}</td>')
+                # Add data attributes for inline cell editing if it's not a parent row
+                data_attrs = ""
+                if not is_wbs:
+                    data_attrs = f' data-id="{p["id"]}" data-col="{col_key}"'
+
+                html.append(f'<td{td_class}{data_attrs}>{val}</td>')
             html.append('</tr>')
             
         html.append('</tbody>')
@@ -1475,6 +1535,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         
         # Clean JS script tag for the iframe container
         js = """
+        <script>
         <script>
         if (typeof window.togglePackage !== 'function') {
             window.togglePackage = function(pkgCode, suffix) {
@@ -1491,6 +1552,84 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                     btn.innerHTML = isHidden ? '−' : '+';
                 }
             };
+        }
+
+        function initInlineEdit() {
+            var cells = document.querySelectorAll('td[data-id][data-col]');
+            cells.forEach(function(cell) {
+                if (cell.querySelector('.toggle-btn')) return;
+
+                cell.title = "Kích đúp để sửa trực tiếp";
+                cell.addEventListener('dblclick', function() {
+                    if (cell.querySelector('input')) return;
+
+                    var oldVal = cell.textContent.trim();
+                    var colName = cell.getAttribute('data-col');
+                    if (colName === 'Hang_muc_formatted') {
+                        oldVal = oldVal.replace(/^↳\s*/, '');
+                    }
+                    if (colName === 'Ngan_sach' && oldVal.endsWith(' tỷ')) {
+                        oldVal = oldVal.replace(' tỷ', '').trim().replace(/,/g, '');
+                    }
+
+                    var input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = oldVal;
+                    input.style.width = '100%';
+                    input.style.boxSizing = 'border-box';
+                    input.style.padding = '4px';
+                    input.style.fontFamily = 'inherit';
+                    input.style.fontSize = 'inherit';
+                    input.style.border = '2px solid #3b82f6';
+                    input.style.borderRadius = '4px';
+                    input.style.outline = 'none';
+
+                    cell.innerHTML = '';
+                    cell.appendChild(input);
+                    input.focus();
+                    input.select();
+
+                    function save() {
+                        var newVal = input.value.trim();
+                        var rowId = cell.getAttribute('data-id');
+                        if (newVal !== oldVal) {
+                            var newSearch = '?edit_row_id=' + rowId + '&edit_col=' + colName + '&edit_val=' + encodeURIComponent(newVal);
+                            window.top.location.href = window.top.location.origin + window.top.location.pathname + newSearch;
+                        } else {
+                            restore();
+                        }
+                    }
+
+                    function restore() {
+                        cell.innerHTML = '';
+                        if (colName === 'Ngan_sach' && oldVal !== '') {
+                            cell.innerHTML = '<span class="num-budget">' + parseFloat(oldVal).toFixed(2) + ' tỷ</span>';
+                        } else if (colName.startsWith('Ngay') && oldVal !== '') {
+                            cell.innerHTML = '<span class="date-cell">' + oldVal + '</span>';
+                        } else {
+                            cell.textContent = oldVal;
+                        }
+                    }
+
+                    input.addEventListener('blur', save);
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            input.removeEventListener('blur', save);
+                            save();
+                        }
+                        if (e.key === 'Escape') {
+                            input.removeEventListener('blur', save);
+                            restore();
+                        }
+                    });
+                });
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initInlineEdit);
+        } else {
+            initInlineEdit();
         }
         </script>
         """
@@ -1724,6 +1863,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 ))
                 
                 conn.commit()
+                database.log_action(curr_user.get('Ho_Ten', 'Ẩn danh'), "Cập nhật", "master_bang_tonghop", p_id, f"Cập nhật chi tiết hạng mục '{proj['Hang_muc']}' (Mã BSC: {proj['Ma_BSC']})")
                 conn.close()
                 st.success("Đã lưu các thay đổi cho hạng mục thành công!")
                 st.session_state['show_edit_form'] = False
@@ -2508,6 +2648,7 @@ elif choice == "👥 Quản lý Nhân sự":
                     """, (add_ma, add_ten, add_chuc, add_vai, add_email,
                           1 if add_xem else 0, 1 if add_them else 0, 1 if add_sua else 0, 1 if add_xoa else 0))
                     conn.commit()
+                    database.log_action(curr_user.get('Ho_Ten', 'Ẩn danh'), "Thêm mới", "nhan_su", add_ma, f"Thêm nhân sự '{add_ten}' (Mã NV: {add_ma}, Chức vụ: {add_chuc})")
                     conn.close()
                     st.success("Thêm nhân sự mới thành công!")
                     st.rerun()
@@ -2561,6 +2702,7 @@ elif choice == "👥 Quản lý Nhân sự":
                             """, (edit_ma, edit_ten, edit_chuc, edit_vai, edit_email,
                                   1 if edit_xem else 0, 1 if edit_them else 0, 1 if edit_sua else 0, 1 if edit_xoa else 0, sel_id))
                             conn.commit()
+                            database.log_action(curr_user.get('Ho_Ten', 'Ẩn danh'), "Cập nhật", "nhan_su", sel_id, f"Cập nhật thông tin & quyền nhân sự '{edit_ten}' (Mã NV: {edit_ma})")
                             conn.close()
                             st.success("Cập nhật thông tin nhân viên thành công!")
                             st.rerun()
@@ -2583,6 +2725,19 @@ elif choice == "👥 Quản lý Nhân sự":
                     cursor = conn.cursor()
                     cursor.execute("DELETE FROM nhan_su WHERE id = ?", (sel_id_del,))
                     conn.commit()
+                    deleted_name = sel_ns_del.split(" - ")[1].split(" (")[0] if " - " in sel_ns_del else sel_ns_del
+                    database.log_action(curr_user.get('Ho_Ten', 'Ẩn danh'), "Xóa", "nhan_su", sel_id_del, f"Xóa nhân sự '{deleted_name}' (ID: {sel_id_del})")
                     conn.close()
                     st.success("Đã xóa nhân viên thành công!")
                     st.rerun()
+
+    # 5. Activity Audit Log
+    with st.expander("📜 Nhật ký Hoạt động & Lịch sử thay đổi (Audit Log)"):
+        conn = database.get_connection()
+        df_logs = pd.read_sql_query("SELECT timestamp AS 'Thời gian', username AS 'Người thực hiện', action_type AS 'Hành động', details AS 'Chi tiết thay đổi' FROM audit_log ORDER BY id DESC LIMIT 200", conn)
+        conn.close()
+        
+        if df_logs.empty:
+            st.info("Chưa có nhật ký hoạt động nào được ghi nhận.")
+        else:
+            st.dataframe(df_logs, use_container_width=True, hide_index=True)
