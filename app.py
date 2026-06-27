@@ -1584,17 +1584,17 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 col_e5, col_e6 = st.columns(2)
                 with col_e5:
                     st.write("**Thời gian & Kế hoạch:**")
-                    e_ngay_kc = st.date_input("Ngày Khởi công", value=datetime.datetime.strptime(proj['Ngay_BD_Khoi_Cong'], '%Y-%m-%d').date() if proj['Ngay_BD_Khoi_Cong'] else None, disabled=not can_edit_procurement_and_progress)
-                    e_tt_khtk = st.selectbox("TT KHTK", ["Chưa trình", "Đang duyệt", "Đã duyệt"], index=["Chưa trình", "Đang duyệt", "Đã duyệt"].index(proj['TT_KHTK'] or "Chưa trình"), disabled=not can_edit_procurement_and_progress)
-                    e_kh_thang_pct = st.number_input("Kế hoạch sản lượng tháng (%)", min_value=0.0, max_value=100.0, value=float((proj['KH_Thang'] or 0.0) * 100), disabled=not can_edit_procurement_and_progress)
+                    e_ngay_kc = st.date_input("Ngày Khởi công", value=datetime.datetime.strptime(proj['Ngay_BD_Khoi_Cong'], '%Y-%m-%d').date() if proj['Ngay_BD_Khoi_Cong'] else None, disabled=not can_edit_D)
+                    e_tt_khtk = st.selectbox("TT KHTK", ["Chưa trình", "Đang duyệt", "Đã duyệt"], index=["Chưa trình", "Đang duyệt", "Đã duyệt"].index(proj['TT_KHTK'] or "Chưa trình"), disabled=not can_edit_D)
+                    e_kh_thang_pct = st.number_input("Kế hoạch sản lượng tháng (%)", min_value=0.0, max_value=100.0, value=float((proj['KH_Thang'] or 0.0) * 100), disabled=not can_edit_G)
                     e_kh_thang = e_kh_thang_pct / 100.0
-                    e_kq_thang_pct = st.number_input("Kết quả sản lượng thực tế (%)", min_value=0.0, max_value=100.0, value=float((proj['KQ_Thang'] or 0.0) * 100), disabled=not can_edit_procurement_and_progress)
+                    e_kq_thang_pct = st.number_input("Kết quả sản lượng thực tế (%)", min_value=0.0, max_value=100.0, value=float((proj['KQ_Thang'] or 0.0) * 100), disabled=not can_edit_G)
                     e_kq_thang = e_kq_thang_pct / 100.0
                 with col_e6:
                     st.write("**Phân tích Tiến độ:**")
-                    e_danh_gia = st.text_area("Đánh giá tiến độ & giải pháp hành động", value=proj['Danh_gia_Thang'] or "", disabled=not can_edit_procurement_and_progress)
+                    e_danh_gia = st.text_area("Đánh giá tiến độ & giải pháp hành động", value=proj['Danh_gia_Thang'] or "", disabled=not can_edit_G)
  
-            has_edit_perm = can_edit_dau_vao or can_edit_procurement_and_progress
+            has_edit_perm = can_edit_A or can_edit_B or can_edit_D or can_edit_E or can_edit_G
             if not has_edit_perm:
                 st.warning("⚠️ Bạn không có quyền chỉnh sửa hạng mục này.")
             submitted_edit = st.form_submit_button("Lưu thay đổi", disabled=not has_edit_perm)
