@@ -128,7 +128,7 @@ def load_users():
     try:
         conn = database.get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT FROM nhan_su ORDER BY Ho_Ten ASC")
+        cursor.execute("SELECT id, Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Xem, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT FROM nhan_su ORDER BY Ho_Ten ASC")
         rows = cursor.fetchall()
         conn.close()
         return [dict(r) for r in rows]
@@ -199,10 +199,11 @@ if is_admin:
     st.sidebar.info("🔓 **Quyền hạn:** Toàn quyền (Admin)")
 else:
     perms = []
-    if curr_user.get('Them_HD') == 1: perms.append("Thêm")
+    if curr_user.get('Xem') == 1: perms.append("Xem")
+    if curr_user.get('Them_HD') == 1: perms.append("Thêm mới")
     if curr_user.get('Sua') == 1: perms.append("Sửa")
     if curr_user.get('Xoa_HD') == 1: perms.append("Xóa")
-    perms_str = ", ".join(perms) if perms else "Chỉ xem"
+    perms_str = ", ".join(perms) if perms else "Không có quyền"
     st.sidebar.info(f"🔒 **Quyền hạn:** {perms_str}")
 
 # ONLY display Gemini API Key if the user is Admin (Chuc_Vu == 'Admin' or Vai_Tro == 'admin2')
@@ -2212,7 +2213,7 @@ elif choice == "👥 Quản lý Nhân sự":
     st.write("## 👥 Quản lý Danh sách Nhân sự & Phân quyền")
     
     conn = database.get_connection()
-    df_ns = pd.read_sql_query("SELECT id, Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT FROM nhan_su", conn)
+    df_ns = pd.read_sql_query("SELECT id, Ma_NV, Ho_Ten, Chuc_Vu, Vai_Tro, Email, Xem, Them_HD, Sua, Xoa_HD, Sua_CDT_BD, Cap_Nhat_CDT FROM nhan_su", conn)
     conn.close()
     
     # 1. Filter dropdown matching your screen
@@ -2333,7 +2334,7 @@ elif choice == "👥 Quản lý Nhân sự":
         
         # Headers
         html.append('<thead><tr>')
-        headers = ["Mã NV", "Họ & Tên", "Chức vụ", "Vai trò", "Email", "Thêm HĐ", "Sửa", "Xóa HĐ", "Sửa CĐT BĐ", "Cập nhật CĐT", "Thao tác"]
+        headers = ["Mã NV", "Họ & Tên", "Chức vụ", "Vai trò", "Email", "Xem", "Thêm mới", "Sửa", "Xóa", "Thao tác"]
         for h in headers:
             html.append(f'<th>{h}</th>')
         html.append('</tr></thead>')
@@ -2349,7 +2350,7 @@ elif choice == "👥 Quản lý Nhân sự":
             html.append(f'<td style="color: #64748b; font-size: 0.75rem;">{row["Email"]}</td>')
             
             # Permissions
-            perm_cols = ["Them_HD", "Sua", "Xoa_HD", "Sua_CDT_BD", "Cap_Nhat_CDT"]
+            perm_cols = ["Xem", "Them_HD", "Sua", "Xoa_HD"]
             for col in perm_cols:
                 if row[col] == 1:
                     html.append('<td><span class="ns-badge-co">🟢 Có</span></td>')
@@ -2384,11 +2385,10 @@ elif choice == "👥 Quản lý Nhân sự":
                 add_email = st.text_input("Email")
             with c2:
                 st.write("**Phân quyền chức năng:**")
-                add_them_hd = st.checkbox("Thêm HĐ", value=False)
+                add_xem = st.checkbox("Xem", value=True)
+                add_them = st.checkbox("Thêm mới", value=False)
                 add_sua = st.checkbox("Sửa", value=False)
-                add_xoa_hd = st.checkbox("Xóa HĐ", value=False)
-                add_sua_cdt = st.checkbox("Sửa CĐT BĐ", value=False)
-                add_cap_nhat = st.checkbox("Cập nhật CĐT", value=False)
+                add_xoa = st.checkbox("Xóa", value=False)
                 
             has_add_perm = check_permission('Them_HD')
             if not has_add_perm:
@@ -2438,11 +2438,10 @@ elif choice == "👥 Quản lý Nhân sự":
                         edit_email = st.text_input("Email", value=row_edit['Email'] or "")
                     with ec2:
                         st.write("**Chỉnh sửa quyền:**")
-                        edit_them_hd = st.checkbox("Thêm HĐ", value=(row_edit['Them_HD'] == 1))
+                        edit_xem = st.checkbox("Xem", value=(row_edit['Xem'] == 1))
+                        edit_them = st.checkbox("Thêm mới", value=(row_edit['Them_HD'] == 1))
                         edit_sua = st.checkbox("Sửa", value=(row_edit['Sua'] == 1))
-                        edit_xoa_hd = st.checkbox("Xóa HĐ", value=(row_edit['Xoa_HD'] == 1))
-                        edit_sua_cdt = st.checkbox("Sửa CĐT BĐ", value=(row_edit['Sua_CDT_BD'] == 1))
-                        edit_cap_nhat = st.checkbox("Cập nhật CĐT", value=(row_edit['Cap_Nhat_CDT'] == 1))
+                        edit_xoa = st.checkbox("Xóa", value=(row_edit['Xoa_HD'] == 1))
                         
                     has_edit_perm = check_permission('Sua')
                     if not has_edit_perm:
@@ -2459,11 +2458,10 @@ elif choice == "👥 Quản lý Nhân sự":
                             cursor.execute("""
                                 UPDATE nhan_su
                                 SET Ma_NV = ?, Ho_Ten = ?, Chuc_Vu = ?, Vai_Tro = ?, Email = ?,
-                                    Them_HD = ?, Sua = ?, Xoa_HD = ?, Sua_CDT_BD = ?, Cap_Nhat_CDT = ?
+                                    Xem = ?, Them_HD = ?, Sua = ?, Xoa_HD = ?, Sua_CDT_BD = 0, Cap_Nhat_CDT = 0
                                 WHERE id = ?
                             """, (edit_ma, edit_ten, edit_chuc, edit_vai, edit_email,
-                                  1 if edit_them_hd else 0, 1 if edit_sua else 0, 1 if edit_xoa_hd else 0,
-                                  1 if edit_sua_cdt else 0, 1 if edit_cap_nhat else 0, sel_id))
+                                  1 if edit_xem else 0, 1 if edit_them else 0, 1 if edit_sua else 0, 1 if edit_xoa else 0, sel_id))
                             conn.commit()
                             conn.close()
                             st.success("Cập nhật thông tin nhân viên thành công!")
