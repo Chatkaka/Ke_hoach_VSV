@@ -1398,11 +1398,33 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         html.append('</table>')
         html.append('</div>')
         
-        # Javascript client-side expand/collapse toggle via image error event hack for React/Streamlit execution compatibility
-        js = """<img src="x" onerror="if (typeof window.togglePackage !== 'function') { window.togglePackage = function(pkgCode, suffix) { var rows = document.querySelectorAll('.child-row-' + pkgCode + '-' + suffix); var btn = document.getElementById('btn-' + pkgCode + '-' + suffix); if (!rows || rows.length === 0) return; var isHidden = (rows[0].style.display === 'none' || window.getComputedStyle(rows[0]).display === 'none'); rows.forEach(function(r) { r.style.display = isHidden ? '' : 'none'; }); if (btn) { btn.innerHTML = isHidden ? '−' : '+'; } }; }" style="display:none;">"""
+        # Clean JS script tag for the iframe container
+        js = """
+        <script>
+        if (typeof window.togglePackage !== 'function') {
+            window.togglePackage = function(pkgCode, suffix) {
+                var rows = document.querySelectorAll('.child-row-' + pkgCode + '-' + suffix);
+                var btn = document.getElementById('btn-' + pkgCode + '-' + suffix);
+                if (!rows || rows.length === 0) return;
+
+                var isHidden = (rows[0].style.display === 'none' || window.getComputedStyle(rows[0]).display === 'none');
+                for (var i = 0; i < rows.length; i++) {
+                    rows[i].style.display = isHidden ? '' : 'none';
+                }
+
+                if (btn) {
+                    btn.innerHTML = isHidden ? '−' : '+';
+                }
+            };
+        }
+        </script>
+        """
         html.append(js)
-        
-        st.markdown("".join(html), unsafe_allow_html=True)
+
+        # Render inside an iframe using components.html for native Javascript execution on Streamlit Cloud
+        import streamlit.components.v1 as components
+        iframe_height = min(600, len(projects_sorted) * 45 + 100)
+        components.html("".join(html), height=iframe_height, scrolling=True)
 
 
     # 1. TAB A: ĐẦU VÀO CĐT
