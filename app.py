@@ -1407,9 +1407,9 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                 if (!rows || rows.length === 0) return;
 
                 var isHidden = (rows[0].style.display === 'none' || window.getComputedStyle(rows[0]).display === 'none');
-                for (var i = 0; i < rows.length; i++) {
-                    rows[i].style.display = isHidden ? '' : 'none';
-                }
+                rows.forEach(function(r) {
+                    r.style.display = isHidden ? '' : 'none';
+                });
 
                 if (btn) {
                     btn.innerHTML = isHidden ? '−' : '+';
