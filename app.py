@@ -1536,7 +1536,6 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         # Clean JS script tag for the iframe container
         js = """
         <script>
-        <script>
         if (typeof window.togglePackage !== 'function') {
             window.togglePackage = function(pkgCode, suffix) {
                 var rows = document.querySelectorAll('.child-row-' + pkgCode + '-' + suffix);
@@ -1594,7 +1593,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         var rowId = cell.getAttribute('data-id');
                         if (newVal !== oldVal) {
                             var newSearch = '?edit_row_id=' + rowId + '&edit_col=' + colName + '&edit_val=' + encodeURIComponent(newVal);
-                            window.top.location.href = window.top.location.origin + window.top.location.pathname + newSearch;
+                            window.open('/' + newSearch, '_top');
                         } else {
                             restore();
                         }
