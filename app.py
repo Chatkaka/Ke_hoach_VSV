@@ -136,7 +136,16 @@ def load_users():
         print(f"Error loading users: {e}")
         return []
 
-# --- Kiểm tra Đăng nhập ---
+# --- Kiểm tra Đăng nhập & Tự động Đăng nhập từ URL ---
+if 'current_user' not in st.session_state or st.session_state['current_user'] is None:
+    qp = st.query_params
+    if 'uid' in qp:
+        uid_val = qp['uid']
+        users_list = load_users()
+        matched_u = next((u for u in users_list if str(u['Ma_NV']).strip() == str(uid_val).strip()), None)
+        if matched_u:
+            st.session_state['current_user'] = matched_u
+
 if 'current_user' not in st.session_state or st.session_state['current_user'] is None:
     # Render Login Page
     st.sidebar.markdown("# 🖥️ HỆ THỐNG KIỂM SOÁT")
@@ -174,6 +183,7 @@ if 'current_user' not in st.session_state or st.session_state['current_user'] is
                 if st.button("🚀 ĐĂNG NHẬP", use_container_width=True, type="primary"):
                     if pwd_input and pwd_input.strip() == str(selected_user_login.get('Ma_NV')).strip():
                         st.session_state['current_user'] = selected_user_login
+                        st.query_params['uid'] = selected_user_login['Ma_NV']
                         st.success("🎉 Đăng nhập thành công! Đang tải hệ thống...")
                         st.rerun()
                     else:
@@ -313,10 +323,37 @@ else:
     # Set the key silently from the environment variable if not admin
     st.session_state['gemini_api_key'] = os.environ.get("GEMINI_API_KEY", "")
 
+# Google Drive Sync status check
+try:
+    import gdrive_sync
+    has_gdrive = ("GDRIVE_SERVICE_ACCOUNT" in st.secrets)
+    if has_gdrive:
+        st.sidebar.success("☁️ Google Drive Sync: Đang hoạt động")
+    else:
+        st.sidebar.warning("⚠️ Google Drive Sync: Chưa cấu hình")
+        with st.sidebar.expander("ℹ️ Hướng dẫn kết nối Google Drive (20TB)"):
+            st.markdown("""
+            Để đồng bộ cơ sở dữ liệu và file Excel của bạn lên Google Drive:
+            1. Tạo một **Service Account** trong Google Cloud Console.
+            2. Tải tệp khóa **JSON credentials** về.
+            3. Tạo một thư mục trên Google Drive của bạn, chia sẻ quyền truy cập thư mục đó cho email của Service Account (quyền Editor).
+            4. Trong Streamlit Cloud, vào **Settings -> Secrets**, cấu hình hai thông số:
+               ```toml
+               GDRIVE_FOLDER_ID = "ID_THU_MUC_GOOGLE_DRIVE"
+               GDRIVE_SERVICE_ACCOUNT = '''{
+                 "type": "service_account",
+                 ...
+               }'''
+               ```
+            """)
+except Exception:
+    pass
+
 # Logout button
 if st.sidebar.button("🚪 Đăng xuất", type="secondary", use_container_width=True):
     st.session_state['current_user'] = None
     st.session_state['gemini_api_key'] = None
+    st.query_params.clear()
     st.rerun()
 
 st.sidebar.divider()
@@ -1023,9 +1060,25 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
             if st.button("🚀 Xác nhận Import", key="btn_confirm_import", type="primary"):
                 with st.spinner("Đang xử lý dữ liệu file Excel..."):
                     try:
+                        # Overwrite local master Excel file with uploaded content
+                        with open(database.EXCEL_PATH, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                            
                         conn = database.get_connection()
                         database.seed_from_excel(conn, uploaded_file)
                         conn.close()
+                        
+                        # Log action (automatically triggers project_control.db upload to Google Drive)
+                        database.log_action(curr_user.get('Ho_Ten', 'Ẩn danh'), "Import Excel", "master_bang_tonghop", 0, "Nhập dữ liệu dự án từ file Excel uploader")
+                        
+                        # Trigger background Excel file upload to Google Drive
+                        try:
+                            import gdrive_sync
+                            import threading
+                            threading.Thread(target=gdrive_sync.upload_to_gdrive, args=(database.EXCEL_PATH, "TDG_Masterfile BQLDA_v1_20260623.xlsx"), daemon=True).start()
+                        except Exception:
+                            pass
+                            
                         st.success("🎉 Nhập dữ liệu từ file Excel thành công!")
                         st.rerun()
                     except Exception as e:
@@ -1264,6 +1317,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
         is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2' or curr_user.get('Ho_Ten') == 'Hồ Nghĩa Chất' or curr_user.get('Ma_NV') == '38')
         can_sua = is_admin or (curr_user.get('Sua') == 1)
         can_xoa = is_admin or (curr_user.get('Xoa_HD') == 1)
+        curr_ma_nv = str(curr_user.get('Ma_NV') or '').strip()
 
         # Copy cols_to_show and add Thao_tac column
         cols_to_show = dict(cols_to_show)
@@ -1607,8 +1661,8 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         del_dis = "" if can_xoa else "disabled title='Bạn không có quyền xóa'"
                         val = f'''
                         <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
-                            <button class="action-btn btn-edit" {edit_dis} onclick="event.stopPropagation(); window.parent.location.href = window.parent.location.origin + '/?edit_row_id_form={p["id"]}';">✏️ Sửa</button>
-                            <button class="action-btn btn-delete" {del_dis} onclick="event.stopPropagation(); if(confirm('Bạn có chắc chắn muốn xóa vĩnh viễn hạng mục này?')) {{ window.parent.location.href = window.parent.location.origin + '/?delete_row_id={p["id"]}'; }}">🗑️ Xóa</button>
+                            <button class="action-btn btn-edit" {edit_dis} onclick="event.stopPropagation(); window.parent.location.href = window.parent.location.origin + '/?uid={curr_ma_nv}&edit_row_id_form={p["id"]}';">✏️ Sửa</button>
+                            <button class="action-btn btn-delete" {del_dis} onclick="event.stopPropagation(); if(confirm('Bạn có chắc chắn muốn xóa vĩnh viễn hạng mục này?')) {{ window.parent.location.href = window.parent.location.origin + '/?uid={curr_ma_nv}&delete_row_id={p["id"]}'; }}">🗑️ Xóa</button>
                         </div>
                         '''
                 elif col_key.startswith("Ngay"):
@@ -1693,7 +1747,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         var newVal = input.value.trim();
                         var rowId = cell.getAttribute('data-id');
                         if (newVal !== oldVal) {
-                            var newSearch = '?edit_row_id=' + rowId + '&edit_col=' + colName + '&edit_val=' + encodeURIComponent(newVal);
+                            var newSearch = '?uid=' + encodeURIComponent('{curr_ma_nv}') + '&edit_row_id=' + rowId + '&edit_col=' + colName + '&edit_val=' + encodeURIComponent(newVal);
                             window.parent.location.href = window.parent.location.origin + '/' + newSearch;
                         } else {
                             restore();

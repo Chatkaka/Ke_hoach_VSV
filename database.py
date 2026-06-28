@@ -88,6 +88,15 @@ def check_and_add_columns(cursor):
                     print(f"Error migrating column {col_name} in {table_name}: {e}")
 
 def init_db(force_reseed=False):
+    # Try downloading database from Google Drive on startup
+    try:
+        import gdrive_sync
+        if gdrive_sync.download_from_gdrive(DB_PATH, "project_control.db"):
+            print("Successfully downloaded latest database from Google Drive!")
+            gdrive_sync.download_from_gdrive(EXCEL_PATH, "TDG_Masterfile BQLDA_v1_20260623.xlsx")
+    except Exception as e:
+        print(f"Google Drive startup download skipped/failed: {e}")
+
     db_exists = os.path.exists(DB_PATH)
     conn = get_connection()
     cursor = conn.cursor()
@@ -500,5 +509,13 @@ def log_action(username, action_type, table_name, record_id, details):
         """, (now_str, username, action_type, table_name, str(record_id), details))
         conn.commit()
         conn.close()
+        
+        # Trigger background GDrive upload after logging an action
+        try:
+            import gdrive_sync
+            import threading
+            threading.Thread(target=gdrive_sync.upload_to_gdrive, args=(DB_PATH, "project_control.db"), daemon=True).start()
+        except Exception:
+            pass
     except Exception as e:
         print(f"Error writing audit log: {e}")
