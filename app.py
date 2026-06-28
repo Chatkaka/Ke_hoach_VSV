@@ -326,7 +326,7 @@ else:
 # Google Drive Sync status check
 try:
     import gdrive_sync
-    has_gdrive = ("GDRIVE_SERVICE_ACCOUNT" in st.secrets)
+    has_gdrive = ("GDRIVE_SERVICE_ACCOUNT" in st.secrets) or ("gdrive_service_account" in st.secrets)
     if has_gdrive:
         st.sidebar.success("☁️ Google Drive Sync: Đang hoạt động")
     else:

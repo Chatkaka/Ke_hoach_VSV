@@ -18,12 +18,15 @@ def get_gdrive_service():
     if not GD_LIBS_AVAILABLE:
         return None
     
-    # Try to load from Streamlit Secrets
-    gdrive_sa = st.secrets.get("GDRIVE_SERVICE_ACCOUNT", None)
+    # Try to load from Streamlit Secrets (check both upper and lowercase)
+    gdrive_sa = st.secrets.get("GDRIVE_SERVICE_ACCOUNT") or st.secrets.get("gdrive_service_account")
     if gdrive_sa:
         try:
-            # Parse service account JSON from secret string
-            info = json.loads(gdrive_sa)
+            # Handle both JSON string and parsed TOML table dict
+            if isinstance(gdrive_sa, str):
+                info = json.loads(gdrive_sa)
+            else:
+                info = dict(gdrive_sa)
             creds = service_account.Credentials.from_service_account_info(
                 info, scopes=["https://www.googleapis.com/auth/drive"]
             )
@@ -42,7 +45,7 @@ def upload_to_gdrive(local_path, gdrive_name):
         return False
         
     try:
-        folder_id = st.secrets.get("GDRIVE_FOLDER_ID", None)
+        folder_id = st.secrets.get("GDRIVE_FOLDER_ID") or st.secrets.get("gdrive_folder_id")
         
         # Search if file already exists
         query = f"name = '{gdrive_name}' and trashed = false"
@@ -75,7 +78,7 @@ def download_from_gdrive(local_path, gdrive_name):
         return False
         
     try:
-        folder_id = st.secrets.get("GDRIVE_FOLDER_ID", None)
+        folder_id = st.secrets.get("GDRIVE_FOLDER_ID") or st.secrets.get("gdrive_folder_id")
         query = f"name = '{gdrive_name}' and trashed = false"
         if folder_id:
             query += f" and '{folder_id}' in parents"
