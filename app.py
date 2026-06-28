@@ -192,6 +192,43 @@ is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or curr_user.get('Vai_Tro') == '
 # --- Xử lý sửa ô trực tiếp (Inline Editing Hook) ---
 if st.query_params:
     qp = st.query_params
+    
+    # --- Edit Row Form trigger ---
+    if 'edit_row_id_form' in qp:
+        try:
+            edit_form_id = int(qp['edit_row_id_form'])
+            st.session_state['show_edit_form'] = True
+            st.session_state['edit_project_id'] = edit_form_id
+            st.query_params.clear()
+            st.rerun()
+        except Exception as e:
+            st.error(f"Lỗi khi mở biểu mẫu sửa: {e}")
+
+    # --- Delete Row trigger ---
+    if 'delete_row_id' in qp:
+        try:
+            delete_id = int(qp['delete_row_id'])
+            username = curr_user.get('Ho_Ten', 'Ẩn danh')
+            has_delete_perm = is_admin or (curr_user.get('Xoa_HD') == 1)
+            if not has_delete_perm:
+                st.error("⚠️ Bạn không có quyền xóa hạng mục.")
+            else:
+                conn = database.get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT Hang_muc, Ma_BSC FROM master_bang_tonghop WHERE id = ?", (delete_id,))
+                row_info = cursor.fetchone()
+                if row_info:
+                    hm_name = row_info[0]
+                    bsc_code = row_info[1]
+                    cursor.execute("DELETE FROM master_bang_tonghop WHERE id = ?", (delete_id,))
+                    conn.commit()
+                    database.log_action(username, "Xóa", "master_bang_tonghop", delete_id, f"Xóa hạng mục '{hm_name}' (Mã BSC: {bsc_code}) qua nút xóa dòng")
+                conn.close()
+            st.query_params.clear()
+            st.rerun()
+        except Exception as e:
+            st.error(f"Lỗi khi thực hiện xóa: {e}")
+
     if 'edit_row_id' in qp and 'edit_col' in qp:
         try:
             edit_id = int(qp['edit_row_id'])
@@ -1220,16 +1257,29 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
 
     def render_project_grid(proj_list, cols_to_show, key_suffix=""):
         display_level = st.session_state.get('global_display_level', 'Cấp chi tiết')
+        
+        # User permissions for action buttons
+        curr_user = st.session_state.get('current_user') or {}
+        role = curr_user.get('Vai_Tro')
+        is_admin = (curr_user.get('Chuc_Vu') == 'Admin' or role == 'admin2' or curr_user.get('Ho_Ten') == 'Hồ Nghĩa Chất' or curr_user.get('Ma_NV') == '38')
+        can_sua = is_admin or (curr_user.get('Sua') == 1)
+        can_xoa = is_admin or (curr_user.get('Xoa_HD') == 1)
+
+        # Copy cols_to_show and add Thao_tac column
+        cols_to_show = dict(cols_to_show)
+        cols_to_show["Thao_tac"] = "Thao tác"
+
         col_widths_map = {
-            "a": ["4%", "10%", "8%", "20%", "8%", "9%", "9%", "8%", "9%", "5%", "5%", "5%"],
-            "b": ["4%", "10%", "9%", "25%", "10%", "8%", "10%", "8%", "8%", "8%"],
-            "c": ["4%", "10%", "9%", "25%", "8%", "8%", "8%", "10%", "10%", "8%"],
-            "d": ["4%", "11%", "9%", "26%", "8%", "10%", "10%", "12%", "10%"],
-            "g": ["4%", "10%", "8%", "20%", "9%", "9%", "18%", "5%", "5%", "5%", "7%"],
-            "all": ["4%", "10%", "8%", "8%", "20%", "8%", "8%", "8%", "8%", "9%", "9%"]
+            "a": ["4%", "10%", "8%", "18%", "8%", "9%", "9%", "8%", "9%", "5%", "5%", "5%"],
+            "b": ["4%", "10%", "9%", "22%", "10%", "8%", "10%", "8%", "8%", "8%"],
+            "c": ["4%", "10%", "9%", "22%", "8%", "8%", "8%", "10%", "10%", "8%"],
+            "d": ["4%", "11%", "9%", "23%", "8%", "10%", "10%", "12%", "10%"],
+            "g": ["4%", "10%", "8%", "18%", "9%", "9%", "15%", "5%", "5%", "5%", "7%"],
+            "all": ["4%", "10%", "8%", "8%", "18%", "8%", "8%", "8%", "8%", "9%", "9%"]
         }
         
-        widths = col_widths_map.get(key_suffix, [f"{int(100/len(cols_to_show))}%"] * len(cols_to_show))
+        orig_widths = col_widths_map.get(key_suffix, [f"{int(100/(len(cols_to_show)-1))}%"] * (len(cols_to_show)-1))
+        widths = list(orig_widths) + ["110px"]
         html = []
         
         css = """
@@ -1394,6 +1444,44 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
             .wbs-level3-row td {
                 color: #475569 !important;
             }
+
+            /* Action Buttons in Rows */
+            .action-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 4px 8px;
+                font-size: 0.725rem;
+                font-weight: 600;
+                border-radius: 4px;
+                border: none;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                text-decoration: none;
+            }
+            .action-btn[disabled] {
+                opacity: 0.4;
+                cursor: not-allowed;
+                pointer-events: none;
+            }
+            .btn-edit {
+                background-color: #eff6ff;
+                color: #2563eb;
+                border: 1px solid #bfdbfe;
+            }
+            .btn-edit:hover {
+                background-color: #2563eb;
+                color: #ffffff;
+            }
+            .btn-delete {
+                background-color: #fef2f2;
+                color: #dc2626;
+                border: 1px solid #fca5a5;
+            }
+            .btn-delete:hover {
+                background-color: #dc2626;
+                color: #ffffff;
+            }
         </style>
         """
         html.append(css)
@@ -1511,6 +1599,18 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         val = f'<span class="master-badge master-badge-yellow">{status_str}</span>'
                     else:
                         val = status_str
+                elif col_key == "Thao_tac":
+                    if is_wbs:
+                        val = ""
+                    else:
+                        edit_dis = "" if can_sua else "disabled title='Bạn không có quyền sửa'"
+                        del_dis = "" if can_xoa else "disabled title='Bạn không có quyền xóa'"
+                        val = f'''
+                        <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                            <button class="action-btn btn-edit" {edit_dis} onclick="event.stopPropagation(); window.open('/?edit_row_id_form={p["id"]}', '_top')">✏️ Sửa</button>
+                            <button class="action-btn btn-delete" {del_dis} onclick="event.stopPropagation(); if(confirm('Bạn có chắc chắn muốn xóa vĩnh viễn hạng mục này?')) {{ window.open('/?delete_row_id={p["id"]}', '_top'); }}">🗑️ Xóa</button>
+                        </div>
+                        '''
                 elif col_key.startswith("Ngay"):
                     item = p[col_key]
                     val = f'<span class="date-cell">{item}</span>' if item else ""
