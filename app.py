@@ -326,18 +326,33 @@ else:
 # Google Drive Sync status check
 try:
     import gdrive_sync
-    has_gdrive = ("GDRIVE_SERVICE_ACCOUNT" in st.secrets) or ("gdrive_service_account" in st.secrets)
+    has_gdrive_file = os.path.exists("gdrive_credentials.json")
+    has_gdrive_secret = ("GDRIVE_SERVICE_ACCOUNT" in st.secrets) or ("gdrive_service_account" in st.secrets)
+    has_gdrive = has_gdrive_file or has_gdrive_secret
+    
     if has_gdrive:
-        st.sidebar.success("☁️ Google Drive Sync: Đang hoạt động")
+        status, err = gdrive_sync.get_sync_status()
+        if status == "Thành công":
+            st.sidebar.success("☁️ Google Drive Sync: Đang hoạt động (Đồng bộ OK)")
+        elif status in ("Thất bại", "Lỗi cấu hình", "Lỗi thư viện"):
+            st.sidebar.error(f"❌ Google Drive Sync: {status}\n\nChi tiết: `{err}`")
+        else:
+            st.sidebar.info(f"☁️ Google Drive Sync: {status}")
     else:
         st.sidebar.warning("⚠️ Google Drive Sync: Chưa cấu hình")
         with st.sidebar.expander("ℹ️ Hướng dẫn kết nối Google Drive (20TB)"):
             st.markdown("""
-            Để đồng bộ cơ sở dữ liệu và file Excel của bạn lên Google Drive:
-            1. Tạo một **Service Account** trong Google Cloud Console.
-            2. Tải tệp khóa **JSON credentials** về.
-            3. Tạo một thư mục trên Google Drive của bạn, chia sẻ quyền truy cập thư mục đó cho email của Service Account (quyền Editor).
-            4. Trong Streamlit Cloud, vào **Settings -> Secrets**, cấu hình hai thông số:
+            Để đồng bộ cơ sở dữ liệu và file Excel lên Google Drive (Có 2 cách):
+            
+            **Cách 1: Lưu file trực tiếp (Dành cho chạy cục bộ / Local)**
+            1. Tải tệp khóa JSON credentials về máy tính của bạn.
+            2. Đặt tên tệp là **`gdrive_credentials.json`**.
+            3. Di chuyển tệp này vào thư mục gốc của dự án (cạnh tệp `app.py`).
+            4. *(Lưu ý: Tệp này đã được thêm vào `.gitignore` để tránh bị đẩy lên GitHub công khai).*
+            
+            **Cách 2: Sử dụng Streamlit Secrets (Dành cho Streamlit Cloud)**
+            1. Tạo một thư mục trên Google Drive của bạn, chia sẻ quyền truy cập thư mục đó cho email của Service Account (quyền Editor).
+            2. Trong Streamlit Cloud, vào **Settings -> Secrets**, cấu hình hai thông số:
                ```toml
                GDRIVE_FOLDER_ID = "ID_THU_MUC_GOOGLE_DRIVE"
                GDRIVE_SERVICE_ACCOUNT = '''{
