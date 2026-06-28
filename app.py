@@ -1607,8 +1607,8 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         del_dis = "" if can_xoa else "disabled title='Bạn không có quyền xóa'"
                         val = f'''
                         <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
-                            <button class="action-btn btn-edit" {edit_dis} onclick="event.stopPropagation(); window.open('/?edit_row_id_form={p["id"]}', '_top')">✏️ Sửa</button>
-                            <button class="action-btn btn-delete" {del_dis} onclick="event.stopPropagation(); if(confirm('Bạn có chắc chắn muốn xóa vĩnh viễn hạng mục này?')) {{ window.open('/?delete_row_id={p["id"]}', '_top'); }}">🗑️ Xóa</button>
+                            <button class="action-btn btn-edit" {edit_dis} onclick="event.stopPropagation(); window.parent.location.href = window.parent.location.origin + '/?edit_row_id_form={p["id"]}';">✏️ Sửa</button>
+                            <button class="action-btn btn-delete" {del_dis} onclick="event.stopPropagation(); if(confirm('Bạn có chắc chắn muốn xóa vĩnh viễn hạng mục này?')) {{ window.parent.location.href = window.parent.location.origin + '/?delete_row_id={p["id"]}'; }}">🗑️ Xóa</button>
                         </div>
                         '''
                 elif col_key.startswith("Ngay"):
@@ -1694,7 +1694,7 @@ elif choice == "📋 Bảng Tổng hợp (Master)":
                         var rowId = cell.getAttribute('data-id');
                         if (newVal !== oldVal) {
                             var newSearch = '?edit_row_id=' + rowId + '&edit_col=' + colName + '&edit_val=' + encodeURIComponent(newVal);
-                            window.open('/' + newSearch, '_top');
+                            window.parent.location.href = window.parent.location.origin + '/' + newSearch;
                         } else {
                             restore();
                         }
